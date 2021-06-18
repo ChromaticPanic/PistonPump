@@ -27,6 +27,8 @@ const byte foot_sw_Pin = 6;
 const int chipSelect = SDCARD_SS_PIN;
 static unsigned long last_interrupt = 0;
 static unsigned long last_trigger = 0;
+const char NEWLINE = '\n';
+const char COMMA = ',';
 
 bool minLimit_trigger = false;
 bool maxLimit_trigger = false;
@@ -84,9 +86,8 @@ void bcMaxvolPopCallback(void *ptr);
 void rstScnPopCallback(void *ptr);
 void rstCtlPopCallback(void *ptr);
 void abortBtnPopCallback(void *ptr);
-#endif
+void update_icons();
 
-#ifdef nex_enable
 NexPage page0    = NexPage(0, 0, "page0");
 NexPage page1    = NexPage(1, 0, "page1");
 NexPage page2    = NexPage(2, 0, "page2");
@@ -161,12 +162,8 @@ void SERCOM2_Handler()
 {
  Serial1.IrqHandler();
 }*/
-
-void update_icons(){
- 
- sendCommand("ref 0");
-}
 #endif
+
 void move_to_zero(){ //454
  //Serial.println("Moving to zero");
   zero_block = true;
@@ -455,7 +452,7 @@ void SD_ReadSettings(){
 
   // Read the file and store the data.
     
-  n = readField(&csvFile, str, sizeof(str), ",");
+  n = readField(&csvFile, str, sizeof(str), COMMA);
   if (n == 0) {
     //Serial.println("Too few lines");
   }
@@ -463,9 +460,9 @@ void SD_ReadSettings(){
   if (ptr == str) {
     //Serial.println("bad number");
   }
-  n = readField(&csvFile, str, sizeof(str), "\n");
+  n = readField(&csvFile, str, sizeof(str), NEWLINE);
 
-  n = readField(&csvFile, str, sizeof(str), ",");
+  n = readField(&csvFile, str, sizeof(str), COMMA);
   if (n == 0) {
     //Serial.println("Too few lines");
   }
@@ -473,9 +470,9 @@ void SD_ReadSettings(){
   if (ptr == str) {
     //Serial.println("bad number");
   }
-  n = readField(&csvFile, str, sizeof(str), "\n");
+  n = readField(&csvFile, str, sizeof(str), NEWLINE);
 
-  n = readField(&csvFile, str, sizeof(str), ",");
+  n = readField(&csvFile, str, sizeof(str), COMMA);
   if (n == 0) {
     //Serial.println("Too few lines");
   }
@@ -483,9 +480,9 @@ void SD_ReadSettings(){
   if (ptr == str) {
     //Serial.println("bad number");
   }
-  n = readField(&csvFile, str, sizeof(str), "\n");
+  n = readField(&csvFile, str, sizeof(str), NEWLINE);
 
-  n = readField(&csvFile, str, sizeof(str), ",");
+  n = readField(&csvFile, str, sizeof(str), COMMA);
   if (n == 0) {
     //Serial.println("Too few lines");
   }
@@ -493,9 +490,9 @@ void SD_ReadSettings(){
   if (ptr == str) {
     //Serial.println("bad number");
   }
-  n = readField(&csvFile, str, sizeof(str), "\n");
+  n = readField(&csvFile, str, sizeof(str), NEWLINE);
 
-  n = readField(&csvFile, str, sizeof(str), ",");
+  n = readField(&csvFile, str, sizeof(str), COMMA);
   if (n == 0) {
     //Serial.println("Too few lines");
   }
@@ -503,9 +500,9 @@ void SD_ReadSettings(){
   if (ptr == str) {
     //Serial.println("bad number");
   }
-  n = readField(&csvFile, str, sizeof(str), "\n");
+  n = readField(&csvFile, str, sizeof(str), NEWLINE);
 
-  n = readField(&csvFile, str, sizeof(str), ",");
+  n = readField(&csvFile, str, sizeof(str), COMMA);
   if (n == 0) {
     //Serial.println("Too few lines");
   }
@@ -513,9 +510,9 @@ void SD_ReadSettings(){
   if (ptr == str) {
     //Serial.println("bad number");
   }
-  n = readField(&csvFile, str, sizeof(str), "\n");
+  n = readField(&csvFile, str, sizeof(str), NEWLINE);
 
-  n = readField(&csvFile, str, sizeof(str), ",");
+  n = readField(&csvFile, str, sizeof(str), COMMA);
   if (n == 0) {
     //Serial.println("Too few lines");
   }
@@ -523,9 +520,9 @@ void SD_ReadSettings(){
   if (ptr == str) {
     //Serial.println("bad number");
   }
-  n = readField(&csvFile, str, sizeof(str), "\n");
+  n = readField(&csvFile, str, sizeof(str), NEWLINE);
 
-  n = readField(&csvFile, str, sizeof(str), ",");
+  n = readField(&csvFile, str, sizeof(str), COMMA);
   if (n == 0) {
     //Serial.println("Too few lines");
   }
@@ -533,9 +530,9 @@ void SD_ReadSettings(){
   if (ptr == str) {
     //Serial.println("bad number");
   }
-  n = readField(&csvFile, str, sizeof(str), "\n");
+  n = readField(&csvFile, str, sizeof(str), NEWLINE);
  // Allow missing endl at eof.
- if (str[n-1] != '\n' && csvFile.available()) {
+ if (str[n-1] != NEWLINE && csvFile.available()) {
    //Serial.println("missing endl");
  }
 
@@ -999,5 +996,9 @@ void abortBtnPopCallback(void *ptr){
  stp_state = false;
  delayMicroseconds(500000);
  sendCommand("page 0");
+}
+void update_icons(){
+ 
+ sendCommand("ref 0");
 }
 #endif
