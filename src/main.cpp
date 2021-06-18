@@ -55,6 +55,37 @@ int errcode = 0;
 
 
 char buffer[100] = {0};
+
+void trigger_check();
+
+#ifdef nex_enable
+void bVolPopCallback(void *ptr);
+void mlstepBoxPopCallback(void *ptr);
+void mlminBoxPopCallback(void *ptr);
+void sdelayBoxPopCallback(void *ptr);
+void perrorPopCallback(void *ptr);
+void bZeroPopCallback(void *ptr);
+void bDispPopCallback(void *ptr);
+void bt1PopCallback(void *ptr);
+void bt5PopCallback(void *ptr);
+void bt10PopCallback(void *ptr);
+void btUPPopCallback(void *ptr);
+void btDNPopCallback(void *ptr);
+void bv11PopCallback(void *ptr);
+void bv16PopCallback(void *ptr);
+void pStp_enaPopCallback(void *ptr);
+void pStp_disPopCallback(void *ptr);
+void pFsw_enaPopCallback(void *ptr);
+void pFsw_disPopCallback(void *ptr);
+void pStp_ena2PopCallback(void *ptr);
+void pStp_dis2PopCallback(void *ptr);
+void bcSavePopCallback(void *ptr);
+void bcMaxvolPopCallback(void *ptr);
+void rstScnPopCallback(void *ptr);
+void rstCtlPopCallback(void *ptr);
+void abortBtnPopCallback(void *ptr);
+#endif
+
 #ifdef nex_enable
 NexPage page0    = NexPage(0, 0, "page0");
 NexPage page1    = NexPage(1, 0, "page1");
@@ -568,6 +599,184 @@ void SD_WriteSettings(){
   //Serial.println(sdelay);
 }
 #endif
+
+
+
+
+void setup() {
+  Serial.begin(9600);
+  for(int i=5 ; i>0 ; i--){
+  delayMicroseconds(1000000);
+  //Serial.println(i);
+  }
+
+  pinMode(min_Limit_sw_Pin, INPUT);
+  pinMode(max_Limit_sw_Pin, INPUT);
+  pinMode(estop_sw_Pin, INPUT);
+  
+  pinMode(foot_sw_Pin, INPUT);
+
+  pinMode(ena_Pin, OUTPUT);
+  pinMode(dir_Pin, OUTPUT);
+  pinMode(pul_Pin, OUTPUT);
+  //pinMode(LED_BUILTIN, OUTPUT);
+  delayMicroseconds(1000000);
+  //Serial.println("pinmode setup complete");
+
+  #ifdef sd_enable
+  SD_Begin();
+  delayMicroseconds(1000000);
+  //Serial.println("reading usb");
+  for(int i=5 ; i>0 ; i--){
+  delayMicroseconds(1000000);
+  //Serial.println(i);
+  }
+  SD_ReadSettings();
+  #endif
+  #ifdef nex_enable
+  //Serial1.begin(9600);
+
+  //pinPeripheral(tx_Pin, PIO_SERCOM);
+  //pinPeripheral(rx_Pin, PIO_SERCOM_ALT);
+
+  //Serial1.begin(9600);
+
+  nexInit();
+  delayMicroseconds(2000000);
+  //Serial.println("nexinit");
+
+  pError.attachPop(perrorPopCallback, &pError);
+  bVol.attachPop(bVolPopCallback, &bVol);
+  bDisp.attachPop(bDispPopCallback, &bDisp);
+  bZero.attachPop(bZeroPopCallback, &bZero);
+  pStp_ena.attachPop(pStp_enaPopCallback, &pStp_ena);
+  pStp_dis.attachPop(pStp_disPopCallback, &pStp_dis);
+  pFsw_ena.attachPop(pFsw_enaPopCallback, &pFsw_ena);
+  pFsw_dis.attachPop(pFsw_disPopCallback, &pFsw_dis);
+
+  mlstepBox.attachPop(mlstepBoxPopCallback, &mlstepBox);
+  mlminBox.attachPop(mlminBoxPopCallback, &mlminBox);
+  bcSave.attachPop(bcSavePopCallback, &bcSave);
+  bcMaxvol.attachPop(bcMaxvolPopCallback, &bcMaxvol);
+
+  bt1.attachPop(bt1PopCallback, &bt1);
+  bt5.attachPop(bt5PopCallback, &bt5);
+  bt10.attachPop(bt10PopCallback, &bt10);
+  btUP.attachPop(btUPPopCallback, &btUP);
+  btDN.attachPop(btDNPopCallback, &btDN);
+  pStp_ena2.attachPop(pStp_ena2PopCallback, &pStp_ena2);
+  pStp_dis2.attachPop(pStp_dis2PopCallback, &pStp_dis2);
+  sdelayBox.attachPop(sdelayBoxPopCallback, &sdelayBox);
+
+  bv11.attachPop(bv11PopCallback, &bv11);
+  bv16.attachPop(bv16PopCallback, &bv16);
+  
+  rstCtl.attachPop(rstCtlPopCallback, &rstCtl);
+  rstScn.attachPop(rstScnPopCallback, &rstScn);
+  abortBtn.attachPop(abortBtnPopCallback, &abortBtn);
+  #endif
+
+  memset(buffer, 0, sizeof(buffer));
+  snprintf(buffer, sizeof(buffer), "%.2f", volume);
+  vol0.setText(buffer);
+
+  memset(buffer, 0, sizeof(buffer));
+  snprintf(buffer, sizeof(buffer), "%.4f", vol_per_1600steps);
+  ml160.setText(buffer);
+
+  memset(buffer, 0, sizeof(buffer));
+  snprintf(buffer, sizeof(buffer), "%.2f", vol_per_min);
+  mlmin0.setText(buffer);
+
+  memset(buffer, 0, sizeof(buffer));
+  snprintf(buffer, sizeof(buffer), "%.2f", max_Vol);
+  maxvol0.setText(buffer);
+
+  memset(buffer, 0, sizeof(buffer));
+  snprintf(buffer, sizeof(buffer), "%.6f", (sdelay/1000000));
+  sdelay0.setText(buffer);
+
+  memset(buffer, 0, sizeof(buffer));
+  snprintf(buffer, sizeof(buffer), "%.6f", max_delay);
+  maxdelay0.setText(buffer);
+
+  memset(buffer, 0, sizeof(buffer));
+  snprintf(buffer, sizeof(buffer), "%.2f", max_rate);
+  maxrate0.setText(buffer);
+
+  memset(buffer, 0, sizeof(buffer));
+  snprintf(buffer, sizeof(buffer), "%.4f", max_cal);
+  maxcal0.setText(buffer);
+
+  sendCommand("page 0");
+  safetyEna(); 
+ 
+ 
+}
+
+void loop() {
+  
+  #ifdef nex_enable
+    nexLoop(nex_listen_list);
+  #endif  
+
+  trigger_check();
+
+}
+
+void trigger_check(){
+ if(minLimit_trigger && !zero_block){
+  //Serial.println("min limit triggered");
+   digitalWrite(ena_Pin, LOW);
+   error_state = true;
+   sendCommand("Main.err0.val=1");
+   delayMicroseconds(200000);
+   sendCommand("Main.stp0.val=0");
+   delayMicroseconds(200000);
+   errcode0.setValue(1);
+   delayMicroseconds(200000);
+   sendCommand("page 7");
+   minLimit_trigger = false;
+  } 
+ if(maxLimit_trigger && !max_block){
+   //Serial.println("max limit triggered");
+   digitalWrite(ena_Pin, LOW);
+   error_state = true;
+   sendCommand("Main.err0.val=1");
+   delayMicroseconds(200000);
+   sendCommand("Main.stp0.val=0");
+   delayMicroseconds(200000);
+   errcode0.setValue(2);
+   delayMicroseconds(200000);
+   sendCommand("page 7");
+   maxLimit_trigger = false;
+  }
+ if(eStop_trigger){
+   //Serial.println("estop limit triggered");
+   digitalWrite(ena_Pin, LOW);
+   error_state = true;
+   sendCommand("Main.err0.val=1");
+   delayMicroseconds(200000);
+   sendCommand("Main.stp0.val=0");
+   delayMicroseconds(200000);
+   errcode0.setValue(3);
+   delayMicroseconds(200000);
+   sendCommand("page 7");
+   eStop_trigger = false;
+ }
+  
+ if(fsw_state && !digitalRead(foot_sw_Pin)){
+  if(millis()-last_trigger > 4000){
+  last_trigger = millis();
+   //Serial.println("foot switch triggered");
+   if(!error_state || !dispensed){
+   dispensed = true;
+   dispense();
+   }
+  }
+ }
+}
+
 #ifdef nex_enable
 void bVolPopCallback(void *ptr){ 
  //Serial.println("Mode 1");
@@ -792,181 +1001,3 @@ void abortBtnPopCallback(void *ptr){
  sendCommand("page 0");
 }
 #endif
-
-
-
-void setup() {
-  Serial.begin(9600);
-  for(int i=5 ; i>0 ; i--){
-  delayMicroseconds(1000000);
-  //Serial.println(i);
-  }
-
-  pinMode(min_Limit_sw_Pin, INPUT);
-  pinMode(max_Limit_sw_Pin, INPUT);
-  pinMode(estop_sw_Pin, INPUT);
-  
-  pinMode(foot_sw_Pin, INPUT);
-
-  pinMode(ena_Pin, OUTPUT);
-  pinMode(dir_Pin, OUTPUT);
-  pinMode(pul_Pin, OUTPUT);
-  //pinMode(LED_BUILTIN, OUTPUT);
-  delayMicroseconds(1000000);
-  //Serial.println("pinmode setup complete");
-
-  #ifdef sd_enable
-  SD_Begin();
-  delayMicroseconds(1000000);
-  //Serial.println("reading usb");
-  for(int i=5 ; i>0 ; i--){
-  delayMicroseconds(1000000);
-  //Serial.println(i);
-  }
-  SD_ReadSettings();
-  #endif
-  #ifdef nex_enable
-  //Serial1.begin(9600);
-
-  //pinPeripheral(tx_Pin, PIO_SERCOM);
-  //pinPeripheral(rx_Pin, PIO_SERCOM_ALT);
-
-  //Serial1.begin(9600);
-
-  nexInit();
-  delayMicroseconds(2000000);
-  //Serial.println("nexinit");
-
-  pError.attachPop(perrorPopCallback, &pError);
-  bVol.attachPop(bVolPopCallback, &bVol);
-  bDisp.attachPop(bDispPopCallback, &bDisp);
-  bZero.attachPop(bZeroPopCallback, &bZero);
-  pStp_ena.attachPop(pStp_enaPopCallback, &pStp_ena);
-  pStp_dis.attachPop(pStp_disPopCallback, &pStp_dis);
-  pFsw_ena.attachPop(pFsw_enaPopCallback, &pFsw_ena);
-  pFsw_dis.attachPop(pFsw_disPopCallback, &pFsw_dis);
-
-  mlstepBox.attachPop(mlstepBoxPopCallback, &mlstepBox);
-  mlminBox.attachPop(mlminBoxPopCallback, &mlminBox);
-  bcSave.attachPop(bcSavePopCallback, &bcSave);
-  bcMaxvol.attachPop(bcMaxvolPopCallback, &bcMaxvol);
-
-  bt1.attachPop(bt1PopCallback, &bt1);
-  bt5.attachPop(bt5PopCallback, &bt5);
-  bt10.attachPop(bt10PopCallback, &bt10);
-  btUP.attachPop(btUPPopCallback, &btUP);
-  btDN.attachPop(btDNPopCallback, &btDN);
-  pStp_ena2.attachPop(pStp_ena2PopCallback, &pStp_ena2);
-  pStp_dis2.attachPop(pStp_dis2PopCallback, &pStp_dis2);
-  sdelayBox.attachPop(sdelayBoxPopCallback, &sdelayBox);
-
-  bv11.attachPop(bv11PopCallback, &bv11);
-  bv16.attachPop(bv16PopCallback, &bv16);
-  
-  rstCtl.attachPop(rstCtlPopCallback, &rstCtl);
-  rstScn.attachPop(rstScnPopCallback, &rstScn);
-  abortBtn.attachPop(abortBtnPopCallback, &abortBtn);
-  #endif
-
-  memset(buffer, 0, sizeof(buffer));
-  snprintf(buffer, sizeof(buffer), "%.2f", volume);
-  vol0.setText(buffer);
-
-  memset(buffer, 0, sizeof(buffer));
-  snprintf(buffer, sizeof(buffer), "%.4f", vol_per_1600steps);
-  ml160.setText(buffer);
-
-  memset(buffer, 0, sizeof(buffer));
-  snprintf(buffer, sizeof(buffer), "%.2f", vol_per_min);
-  mlmin0.setText(buffer);
-
-  memset(buffer, 0, sizeof(buffer));
-  snprintf(buffer, sizeof(buffer), "%.2f", max_Vol);
-  maxvol0.setText(buffer);
-
-  memset(buffer, 0, sizeof(buffer));
-  snprintf(buffer, sizeof(buffer), "%.6f", (sdelay/1000000));
-  sdelay0.setText(buffer);
-
-  memset(buffer, 0, sizeof(buffer));
-  snprintf(buffer, sizeof(buffer), "%.6f", max_delay);
-  maxdelay0.setText(buffer);
-
-  memset(buffer, 0, sizeof(buffer));
-  snprintf(buffer, sizeof(buffer), "%.2f", max_rate);
-  maxrate0.setText(buffer);
-
-  memset(buffer, 0, sizeof(buffer));
-  snprintf(buffer, sizeof(buffer), "%.4f", max_cal);
-  maxcal0.setText(buffer);
-
-  sendCommand("page 0");
-  safetyEna(); 
- 
- 
-}
-
-void loop() {
-  
-#ifdef nex_enable
-  nexLoop(nex_listen_list);
-#endif  
-
- if(minLimit_trigger && !zero_block){
-  //Serial.println("min limit triggered");
-   digitalWrite(ena_Pin, LOW);
-   error_state = true;
-   sendCommand("Main.err0.val=1");
-   delayMicroseconds(200000);
-   sendCommand("Main.stp0.val=0");
-   delayMicroseconds(200000);
-   errcode0.setValue(1);
-   delayMicroseconds(200000);
-   sendCommand("page 7");
-   minLimit_trigger = false;
-  } 
- if(maxLimit_trigger && !max_block){
-   //Serial.println("max limit triggered");
-   digitalWrite(ena_Pin, LOW);
-   error_state = true;
-   sendCommand("Main.err0.val=1");
-   delayMicroseconds(200000);
-   sendCommand("Main.stp0.val=0");
-   delayMicroseconds(200000);
-   errcode0.setValue(2);
-   delayMicroseconds(200000);
-   sendCommand("page 7");
-   maxLimit_trigger = false;
-  }
- if(eStop_trigger){
-   //Serial.println("estop limit triggered");
-   digitalWrite(ena_Pin, LOW);
-   error_state = true;
-   sendCommand("Main.err0.val=1");
-   delayMicroseconds(200000);
-   sendCommand("Main.stp0.val=0");
-   delayMicroseconds(200000);
-   errcode0.setValue(3);
-   delayMicroseconds(200000);
-   sendCommand("page 7");
-   eStop_trigger = false;
- }
-  
- if(fsw_state && !digitalRead(foot_sw_Pin)){
-  if(millis()-last_trigger > 4000){
-  last_trigger = millis();
-   //Serial.println("foot switch triggered");
-   if(!error_state || !dispensed){
-   dispensed = true;
-   dispense();
-   }
-  }
-  
- }
-
-  //digitalWrite(LED_BUILTIN, HIGH);   // turn the LED on (HIGH is the voltage level)
-  //delay(1000);                       // wait for a second
-  //digitalWrite(LED_BUILTIN, LOW);    // turn the LED off by making the voltage LOW
-  //delay(1000);
-}
-
