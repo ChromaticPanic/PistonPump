@@ -1,0 +1,1060 @@
+#include <Arduino.h>
+#include "wiring_private.h"
+#include <SD.h>
+
+#define sd_enable
+#define nex_enable
+
+#ifdef nex_enable
+#include "Nextion.h"
+#include "NexButton.h"
+#include "NexText.h"
+#include "NexProgressBar.h"
+#include "NexPicture.h"
+//#include <SoftwareSerial.h>
+#endif
+
+const byte tx_Pin = 2;
+const byte rx_Pin = 3;
+const byte min_Limit_sw_Pin = 4;
+const byte max_Limit_sw_Pin = 5;
+const byte estop_sw_Pin = 7;
+const byte ena_Pin = 21;
+const byte dir_Pin = 19; //A2
+const byte pul_Pin = 17; //A4
+const byte foot_sw_Pin = 6;
+const int chipSelect = SDCARD_SS_PIN;
+
+
+bool minLimit_trigger = false;
+bool maxLimit_trigger = false;
+bool eStop_trigger = false;
+bool zero_block = false;
+bool error_state = false;
+bool stp_state = false;
+bool fsw_state = false;
+
+float volume = 250;
+int steps = 0;
+float speed = 0;
+float vol_per_1600steps = 2.5000;
+float dispensed = 0;
+float vol_per_min = 2500;
+int jogAmt = 1;
+int mode = 1; //1,2,3
+
+
+char buffer[100] = {0};
+#ifdef nex_enable
+NexPage page0    = NexPage(0, 0, "page0");
+NexPage page1    = NexPage(1, 0, "page1");
+NexPage page2    = NexPage(2, 0, "page2");
+NexPage page3    = NexPage(3, 0, "page3");
+//NexPage page4    = NexPage(4, 0, "page4");
+//Declare a text object [page id:0,component id:1, component name: "t0"]. 
+//Declare a button object [page id:0,component id:2, component name: "b0"]. 
+//NexText t0 = NexText(0, 1, "t0");
+//NexButton b0 = NexButton(0, 2, "b0");
+
+//Page 0
+//NexText errorBox = NexText(0, 8, "t0");
+NexProgressBar progressBar = NexProgressBar(0, 4, "j0");
+NexButton bVol = NexButton(0, 11, "bVol");
+NexButton bDisp = NexButton(0, 5, "bDisp");
+NexButton bZero = NexButton(0, 6, "bZero");
+NexButton bSetup = NexButton(0, 7, "bSetup");
+NexPicture pError = NexPicture(0, 12, "p0");
+NexPicture pStp_ena = NexPicture(0, 4, "p1");
+NexPicture pStp_dis = NexPicture(0, 3, "p2");
+NexPicture pFsw_ena = NexPicture(0, 2, "p3");
+NexPicture pFsw_dis = NexPicture(0, 1, "p4");
+
+//Page 1
+NexButton bv0 = NexButton(1, 16, "b0");
+NexButton bv1 = NexButton(1, 10, "b1");
+NexButton bv2 = NexButton(1, 11, "b2");
+NexButton bv3 = NexButton(1, 12, "b3");
+NexButton bv4 = NexButton(1, 7, "b4");
+NexButton bv5 = NexButton(1, 8, "b5");
+NexButton bv6 = NexButton(1, 9, "b6");
+NexButton bv7 = NexButton(1, 4, "b7");
+NexButton bv8 = NexButton(1, 5, "b8");
+NexButton bv9 = NexButton(1, 6, "b9");
+NexButton bv10 = NexButton(1, 14, "b10");
+NexButton bv11 = NexButton(1, 15, "b11");
+NexButton bv15 = NexButton(1, 13, "b15");
+NexButton bv20 = NexButton(1, 3, "b20");
+NexButton bv16 = NexButton(1, 18, "b16");
+NexProgressBar progressBar2 = NexProgressBar(1, 17, "j0");
+NexText unitBox = NexText(1, 1, "t2");
+
+//Page 2
+
+NexText jogBox = NexText(2, 11, "t7");
+NexButton btBack = NexButton(2, 5, "b0");
+NexButton bt1 = NexButton(2, 8, "b4");
+NexButton bt5 = NexButton(2, 9, "b5");
+NexButton bt10 = NexButton(2, 10, "b6");
+NexButton btUP = NexButton(2, 6, "b1");
+NexButton btDN = NexButton(2, 7, "b2");
+NexButton btCal = NexButton(2, 12, "b7");
+NexPicture pStp_ena2 = NexPicture(2, 1, "p0");
+NexPicture pStp_dis2 = NexPicture(2, 2, "p1");
+
+//Page3
+NexText mlstepBox = NexText(3, 2, "t3");
+NexText mlminBox = NexText(3, 1, "t2");
+NexButton bcBack = NexButton(3, 6, "b0");
+NexButton bcSave = NexButton(3, 7, "b3");
+
+NexTouch *nex_listen_list[] = 
+{
+    &pError, &bVol, &bDisp, &bZero, &bSetup, &pStp_ena, &pStp_dis, &pFsw_ena, &pFsw_ena,
+    &mlstepBox, &mlminBox, &btBack, &btCal, &pStp_ena2, &pStp_dis2, &bcBack, &bcSave,
+    &bt1, &bt5, &bt10, &btUP, &btDN,
+    &bv0, &bv1, &bv2, &bv3, &bv4, &bv5, &bv6,
+    &bv7, &bv8, &bv9, &bv10, &bv11, &bv15, &bv20, &bv16,
+    /*&bs0, &bs1, &bs2, &bs3, &bs4, &bs5, &bs6,
+    &bs7, &bs8, &bs9, &bs10, &bs11, &bs15, &bs20,
+    &bm0, &bm1, &bm2, &bm3, &bm4, &bm5, &bm6,
+    &bm7, &bm8, &bm9, &bm10, &bm11, &bm15, &bm20,
+    &bm16,*/ &page0, &page1, &page2, &page3,
+};
+/*Uart Serial2 (&sercom2, rx_Pin, tx_Pin, SERCOM_RX_PAD_1, UART_TX_PAD_2);
+void SERCOM2_Handler()
+{
+ Serial1.IrqHandler();
+}*/
+
+void update_icons(){
+ if(stp_state){
+  sendCommand("vis p1,1");
+  sendCommand("vis p2,0");
+  /*Serial1.print("vis p1,1");
+  Serial1.write(0xff);
+  Serial1.write(0xff);
+  Serial1.write(0xff);
+  Serial1.print("vis p2,0");
+  Serial1.write(0xff);
+  Serial1.write(0xff);
+  Serial1.write(0xff);*/
+ }else{
+  sendCommand("vis p2,1");
+  sendCommand("vis p1,0");  
+  /*Serial1.print("vis p2,1");
+  Serial1.write(0xff);
+  Serial1.write(0xff);
+  Serial1.write(0xff);
+  Serial1.print("vis p1,0");
+  Serial1.write(0xff);
+  Serial1.write(0xff);
+  Serial1.write(0xff);*/
+ }
+ if(fsw_state){
+  sendCommand("vis p3,1");
+  sendCommand("vis p4,0");
+  /*Serial1.print("vis p4,0");
+  Serial1.write(0xff);
+  Serial1.write(0xff);
+  Serial1.write(0xff);
+  Serial1.print("vis p3,1");
+  Serial1.write(0xff);
+  Serial1.write(0xff);
+  Serial1.write(0xff);*/
+ }else{
+  sendCommand("vis p3,0");
+  sendCommand("vis p4,1");
+  /*Serial1.print("vis p3,0");
+  Serial1.write(0xff);
+  Serial1.write(0xff);
+  Serial1.write(0xff);
+  Serial1.print("vis p4,1");
+  Serial1.write(0xff);
+  Serial1.write(0xff);
+  Serial1.write(0xff);*/
+ }
+ if(!error_state){
+  sendCommand("vis p0,0");
+  /*Serial1.print("vis p0,0");
+  Serial1.write(0xff);
+  Serial1.write(0xff);
+  Serial1.write(0xff);*/
+ }
+ sendCommand("ref 0");
+}
+#endif
+void move_to_zero(){
+  zero_block = true;
+  if(stp_state){
+   digitalWrite(ena_Pin, LOW);
+   delayMicroseconds(100);
+   
+   digitalWrite(dir_Pin, HIGH);
+   delayMicroseconds(100);
+
+   while(!minLimit_trigger){
+    if(error_state){
+     return;
+    }
+    digitalWrite(pul_Pin, HIGH);
+    delayMicroseconds(2500);
+    digitalWrite(pul_Pin, LOW);
+    delayMicroseconds(2500);
+   }
+
+   digitalWrite(dir_Pin, LOW);
+   delayMicroseconds(100);
+
+   for (int i = 0; i < 1600; i++){
+    if(error_state){
+     return;
+    }
+    digitalWrite(pul_Pin, HIGH);
+    delayMicroseconds(2500);
+    digitalWrite(pul_Pin, LOW);
+    delayMicroseconds(2500);
+   }
+  }
+  zero_block = false;
+}
+
+void dispense(){
+  if(stp_state){
+   digitalWrite(ena_Pin, LOW);
+   delayMicroseconds(100);
+   
+   // microseconds/step = mL/step * min/mL * 60000000 microseconds/min
+   speed = (( 1600 * vol_per_1600steps / vol_per_min) * 60000000)/2;  
+   if (volume > 510.00){
+
+   } else if (volume > 250.00){
+     
+     digitalWrite(dir_Pin, LOW);
+     delayMicroseconds(100);
+
+     steps = 250 / (1600 * vol_per_1600steps);
+
+     for (int i = 0; i < steps; i++){
+      if(error_state){
+       return;
+      }
+      digitalWrite(pul_Pin, HIGH);
+      delayMicroseconds(speed);
+      digitalWrite(pul_Pin, LOW);
+      delayMicroseconds(speed);
+     }
+     
+     digitalWrite(dir_Pin, HIGH);
+     delayMicroseconds(100);
+
+     for (int i = 0; i < steps; i++){
+      if(error_state){
+       return;
+      }
+      digitalWrite(pul_Pin, HIGH);
+      delayMicroseconds(speed);
+      digitalWrite(pul_Pin, LOW);
+      delayMicroseconds(speed);
+     }
+
+     digitalWrite(dir_Pin, LOW);
+     delayMicroseconds(100);
+
+     steps = (volume - 250) / (1600 * vol_per_1600steps);
+
+     for (int i = 0; i < steps; i++){
+      if(error_state){
+       return;
+      }
+      digitalWrite(pul_Pin, HIGH);
+      delayMicroseconds(speed);
+      digitalWrite(pul_Pin, LOW);
+      delayMicroseconds(speed);
+     }
+     
+     digitalWrite(dir_Pin, HIGH);
+     delayMicroseconds(100);
+
+     for (int i = 0; i < steps; i++){
+      if(error_state){
+       return;
+      }
+      digitalWrite(pul_Pin, HIGH);
+      delayMicroseconds(speed);
+      digitalWrite(pul_Pin, LOW);
+      delayMicroseconds(speed);
+     }
+    
+   } else if (volume > 0) {
+    
+    digitalWrite(dir_Pin, LOW);
+    delayMicroseconds(100);
+
+    steps = volume / (1600 * vol_per_1600steps);
+
+     for (int i = 0; i < steps; i++){
+      if(error_state){
+       return;
+      }
+      digitalWrite(pul_Pin, HIGH);
+      delayMicroseconds(speed);
+      digitalWrite(pul_Pin, LOW);
+      delayMicroseconds(speed);
+     }
+
+     digitalWrite(dir_Pin, HIGH);
+     delayMicroseconds(100);
+
+     for (int i = 0; i < steps; i++){
+      if(error_state){
+       return;
+      }
+      digitalWrite(pul_Pin, HIGH);
+      delayMicroseconds(speed);
+      digitalWrite(pul_Pin, LOW);
+      delayMicroseconds(speed);
+     }
+   }
+  }
+
+}
+void cal1600(){
+
+ if(stp_state){
+  digitalWrite(ena_Pin, LOW);
+  delayMicroseconds(100);
+
+  digitalWrite(dir_Pin, LOW);
+  delayMicroseconds(100);
+
+  for (int i = 0; i < 1600; i++){
+   if(error_state){
+       return;
+      }
+   digitalWrite(pul_Pin, HIGH);
+   delayMicroseconds(2500);
+   digitalWrite(pul_Pin, LOW);
+   delayMicroseconds(2500);
+  }
+
+  digitalWrite(dir_Pin, HIGH);
+  delayMicroseconds(100);
+
+  for (int i = 0; i < 1600; i++){
+   if(error_state){
+       return;
+      }
+   digitalWrite(pul_Pin, HIGH);
+   delayMicroseconds(2500);
+   digitalWrite(pul_Pin, LOW);
+   delayMicroseconds(2500);
+  }
+ }
+}
+#ifdef nex_enable
+void bVolPopCallback(void *ptr){ 
+ sendCommand("page 1");
+ sendCommand("vis j0,0");
+ sendCommand("vis b16,0");
+ /*page1.show();
+ Serial1.print("vis j0,0");
+ Serial1.write(0xff);
+ Serial1.write(0xff);
+ Serial1.write(0xff);
+ Serial1.print("vis b16,0");
+ Serial1.write(0xff);
+ Serial1.write(0xff);
+ Serial1.write(0xff);*/
+ strcpy(buffer, "mL");
+ unitBox.setText(buffer);
+ snprintf(buffer, sizeof(buffer), "%.2f", volume);
+ bv20.setText(buffer);
+ mode = 1;
+ sendCommand("ref 0");
+}
+
+void bv15PopCallback(void *ptr){
+ //strcpy(buffer, ""); 
+ sendCommand("page 0");
+ //page0.show();
+ snprintf(buffer, sizeof(buffer), "%.2f", volume);
+ bVol.setText(buffer);
+ update_icons();
+}
+
+void btBackPopCallback(void *ptr){ 
+ sendCommand("page 0");
+ //page0.show();
+ snprintf(buffer, sizeof(buffer), "%.2f", volume);
+ bVol.setText(buffer);
+ update_icons();
+}
+
+void bcBackPopCallback(void *ptr){
+ sendCommand("page 2"); 
+ //page2.show();
+ if(stp_state){
+  sendCommand("vis p0,1");
+  sendCommand("vis p1,0");
+  /*Serial1.print("vis p1,0");
+  Serial1.write(0xff);
+  Serial1.write(0xff);
+  Serial1.write(0xff);
+  Serial1.print("vis p0,1");
+  Serial1.write(0xff);
+  Serial1.write(0xff);
+  Serial1.write(0xff);*/
+ }else{
+  sendCommand("vis p1,1");
+  sendCommand("vis p0,0");
+  /*Serial1.print("vis p1,1");
+  Serial1.write(0xff);
+  Serial1.write(0xff);
+  Serial1.write(0xff);
+  Serial1.print("vis p0,0");
+  Serial1.write(0xff);
+  Serial1.write(0xff);
+  Serial1.write(0xff);*/
+ }
+ sendCommand("ref 0");
+}
+
+void btCalPopCallback(void *ptr){ 
+ sendCommand("page 3");
+ //page3.show();
+ snprintf(buffer, sizeof(buffer), "%.4f", vol_per_1600steps);
+ mlstepBox.setText(buffer);
+ snprintf(buffer, sizeof(buffer), "%.2f", vol_per_min);
+ mlminBox.setText(buffer);
+}
+
+void mlstepBoxPopCallback(void *ptr){ 
+ sendCommand("page 1");
+ sendCommand("vis j0,1");
+ sendCommand("vis b16,1");
+ /*page1.show();
+ Serial1.print("vis j0,1");
+ Serial1.write(0xff);
+ Serial1.write(0xff);
+ Serial1.write(0xff);
+ Serial1.print("vis b16,1");
+ Serial1.write(0xff);
+ Serial1.write(0xff);
+ Serial1.write(0xff);*/
+ strcpy(buffer, "mL");
+ unitBox.setText(buffer);
+ snprintf(buffer, sizeof(buffer), "%.4f", vol_per_1600steps);
+ bv20.setText(buffer);
+ mode = 2;
+ sendCommand("ref 0");
+}
+
+void mlminBoxPopCallback(void *ptr){
+ sendCommand("page 1");
+ sendCommand("vis j0,0");
+ sendCommand("vis b16,0");
+ /*page1.show();
+ Serial1.print("vis j0,0");
+ Serial1.write(0xff);
+ Serial1.write(0xff);
+ Serial1.write(0xff);
+ Serial1.print("vis b16,0");
+ Serial1.write(0xff);
+ Serial1.write(0xff);
+ Serial1.write(0xff);*/
+ strcpy(buffer, "mL / min");
+ unitBox.setText(buffer);
+ snprintf(buffer, sizeof(buffer), "%.2f", vol_per_min);
+ bv20.setText(buffer);
+ mode = 3;
+ sendCommand("ref 0");
+}
+
+void bSetupPopCallback(void *ptr){ 
+ sendCommand("page 2");
+ //page2.show();
+ delayMicroseconds(300000);
+ if(stp_state){
+  sendCommand("vis p1,0");
+  delayMicroseconds(300000);
+  sendCommand("vis p0,1");
+  /*Serial1.print("vis p1,0");
+  Serial1.write(0xff);
+  Serial1.write(0xff);
+  Serial1.write(0xff);
+  Serial1.print("vis p0,1");
+  Serial1.write(0xff);
+  Serial1.write(0xff);
+  Serial1.write(0xff);*/
+ }else{
+  sendCommand("vis p1,1");
+  delayMicroseconds(300000);
+  sendCommand("vis p0,0");
+  /*Serial1.print("vis p1,1");
+  Serial1.write(0xff);
+  Serial1.write(0xff);
+  Serial1.write(0xff);
+  Serial1.print("vis p0,0");
+  Serial1.write(0xff);
+  Serial1.write(0xff);
+  Serial1.write(0xff);*/
+ }
+ sendCommand("ref 0");
+}
+
+void perrorPopCallback(void *ptr){ 
+ sendCommand("vis p0,0");
+ /*Serial1.print("vis p0,0");
+ Serial1.write(0xff);
+ Serial1.write(0xff);
+ Serial1.write(0xff);*/
+ //add popup msgbox
+ error_state = false;
+ sendCommand("ref 0");
+}
+
+void bZeroPopCallback(void *ptr){ 
+ move_to_zero();
+}
+
+void bDispPopCallback(void *ptr){ 
+ dispense();
+}
+
+void bt1PopCallback(void *ptr){ 
+ jogAmt = 400;
+ strcpy(buffer, "Jog 1");
+ jogBox.setText(buffer);
+}
+void bt5PopCallback(void *ptr){ 
+ jogAmt = 2000;
+ strcpy(buffer, "Jog 5");
+ jogBox.setText(buffer);
+}
+void bt10PopCallback(void *ptr){ 
+ jogAmt = 4000;
+ strcpy(buffer, "Jog 10");
+ jogBox.setText(buffer);
+}
+void btUPPopCallback(void *ptr){
+  //digitalWrite(ena_Pin, LOW);
+  //delayMicroseconds(100);
+
+  digitalWrite(dir_Pin, HIGH);
+  delayMicroseconds(100);
+  for (int i = 0; i < jogAmt; i++){
+   if(error_state){
+       return;
+      }
+   digitalWrite(pul_Pin, HIGH);
+   delayMicroseconds(2000);
+   digitalWrite(pul_Pin, LOW);
+   delayMicroseconds(2000);
+  }
+}
+
+void btDNPopCallback(void *ptr){
+  //digitalWrite(ena_Pin, HIGH);
+  //delayMicroseconds(100);
+
+  digitalWrite(dir_Pin, LOW);
+  delayMicroseconds(100);
+  for (int i = 0; i < jogAmt; i++){
+   if(error_state){
+       return;
+      }
+   digitalWrite(pul_Pin, HIGH);
+   delayMicroseconds(2000);
+   digitalWrite(pul_Pin, LOW);
+   delayMicroseconds(2000);
+  }
+}
+
+void bv20PopCallback(void *ptr){
+  //memset(buffer, 0, sizeof(buffer));
+  strcpy(buffer, "");
+  bv20.setText(buffer);
+  
+}
+
+void bv0PopCallback(void *ptr){
+  strcat(buffer, "0");
+  bv20.setText(buffer);  
+}
+void bv1PopCallback(void *ptr){
+  strcat(buffer, "1");
+  bv20.setText(buffer);  
+}
+void bv2PopCallback(void *ptr){
+  strcat(buffer, "2");
+  bv20.setText(buffer);  
+}
+void bv3PopCallback(void *ptr){
+  strcat(buffer, "3");
+  bv20.setText(buffer);  
+}
+void bv4PopCallback(void *ptr){
+  strcat(buffer, "4");
+  bv20.setText(buffer);  
+}
+void bv5PopCallback(void *ptr){
+  strcat(buffer, "5");
+  bv20.setText(buffer);  
+}
+void bv6PopCallback(void *ptr){
+  strcat(buffer, "6");
+  bv20.setText(buffer);  
+}
+void bv7PopCallback(void *ptr){
+  strcat(buffer, "7");
+  bv20.setText(buffer);  
+}
+void bv8PopCallback(void *ptr){
+  strcat(buffer, "8");
+  bv20.setText(buffer);  
+}
+void bv9PopCallback(void *ptr){
+  strcat(buffer, "9");
+  bv20.setText(buffer);  
+}
+void bv10PopCallback(void *ptr){
+  strcat(buffer, ".");
+  bv20.setText(buffer);  
+}
+void bv11PopCallback(void *ptr){
+  // 
+  switch(mode) {
+  case 1:
+    if(atof(buffer)<500){
+     volume = atof(buffer);
+     Serial.print("volume set to ");
+     Serial.println(volume);
+    } else {
+     //handle error
+    }
+    sendCommand("page 0");
+    update_icons();
+    break;
+  case 2:
+    if(atof(buffer)<20){
+     vol_per_1600steps = atof(buffer);
+     Serial.print("volume per 1600 steps set to ");
+     Serial.println(vol_per_1600steps);
+    } else {
+     //handle error
+    }
+    sendCommand("page 0");
+    update_icons();
+    break;
+  case 3:
+    if(atof(buffer)<3000){
+     vol_per_min = atof(buffer);
+     Serial.print("volume per min set to ");
+     Serial.println(vol_per_min);
+    } else {
+     //handle error
+    }
+    sendCommand("page 0");
+    update_icons();
+    break;
+  //default:
+    // code block
+  } 
+ }
+void bv16PopCallback(void *ptr){
+  cal1600();  
+}
+#endif
+
+void min_Limit() {
+  if(!minLimit_trigger && !zero_block)
+  {
+   minLimit_trigger = true;
+   digitalWrite(ena_Pin, HIGH);
+   error_state = true;
+  } else if (!minLimit_trigger && zero_block) {
+   minLimit_trigger = true;
+  }
+  Serial.println("min limit triggered");
+}
+void max_Limit() {
+  if(!maxLimit_trigger)
+  {
+   maxLimit_trigger = true;
+   digitalWrite(ena_Pin, HIGH);
+   error_state = true;
+  }
+  Serial.println("max limit triggered");
+}
+void e_Stop() {
+  if(!eStop_trigger)
+  {
+   eStop_trigger = true;
+   digitalWrite(ena_Pin, HIGH);
+   error_state = true;
+  }
+  Serial.println("estop limit triggered");
+}
+
+#ifdef sd_enable
+bool SD_Begin(void){
+  Serial.print("Initializing SD card...");
+  if (!SD.begin(chipSelect)) {
+    Serial.println("Card failed, or not present");
+    return(0);
+  }
+  else {
+    Serial.println("card initialized.");
+    return(1);
+  }
+}
+size_t readField(File* file, char* str, size_t size, char* delim) {
+  char ch;
+  size_t n = 0;
+  while ((n + 1) < size && file->read(&ch, 1) == 1) {
+    // Delete CR.
+    if (ch == '\r') {
+      continue;
+    }
+    str[n++] = ch;
+    if (strchr(delim, ch)) {
+        break;
+    }
+  }
+  str[n] = '\0';
+  return n;
+}
+void SD_ReadSettings(){
+  File csvFile;
+  char filename[15];
+  strcpy(filename, "settings.txt");
+  csvFile = SD.open(filename, FILE_READ);
+  if (!csvFile) {
+    Serial.print("error opening ");
+    Serial.println(filename);
+    while (1);
+  }
+
+// Rewind the file for read.
+  csvFile.seek(0);
+
+ 
+  size_t n;      // Length of returned field with delimiter.
+  char str[20];  // Must hold longest field with delimiter and zero byte.
+  char *ptr;     // Test for valid field.
+
+  // Read the file and store the data.
+    
+  n = readField(&csvFile, str, sizeof(str), ",");
+  if (n == 0) {
+    Serial.println("Too few lines");
+  }
+  volume = strtof(str, &ptr);
+  if (ptr == str) {
+    Serial.println("bad number");
+  }
+  n = readField(&csvFile, str, sizeof(str), "\n");
+
+  n = readField(&csvFile, str, sizeof(str), ",");
+  if (n == 0) {
+    Serial.println("Too few lines");
+  }
+  vol_per_1600steps = strtof(str, &ptr);
+  if (ptr == str) {
+    Serial.println("bad number");
+  }
+  n = readField(&csvFile, str, sizeof(str), "\n");
+
+  n = readField(&csvFile, str, sizeof(str), ",");
+  if (n == 0) {
+    Serial.println("Too few lines");
+  }
+  vol_per_min = strtof(str, &ptr);
+  if (ptr == str) {
+    Serial.println("bad number");
+  }
+  n = readField(&csvFile, str, sizeof(str), "\n");
+
+ // Allow missing endl at eof.
+ if (str[n-1] != '\n' && csvFile.available()) {
+   Serial.println("missing endl");
+ }
+
+  csvFile.close();
+  Serial.print("Volume(mL)   :   ");
+  Serial.println(volume);
+  Serial.print("mL/1600 Steps:   ");
+  Serial.println(vol_per_1600steps);
+  Serial.print("mL/min       :   ");
+  Serial.println(vol_per_min);
+}
+void SD_WriteSettings(){
+  File csvFile;
+  char filename[15];
+  strcpy(filename, "settings.txt");
+  csvFile = SD.open(filename, FILE_WRITE);
+  if (!csvFile) {
+    Serial.print("error opening ");
+    Serial.println(filename);
+    while (1);
+  }
+
+// Rewind the file for write.
+  csvFile.seek(0);
+  csvFile.print(volume);
+  csvFile.println(",volume");
+  csvFile.print(vol_per_1600steps);
+  csvFile.println(",vol_per_1600");
+  csvFile.print(vol_per_min);
+  csvFile.println(",vol_per_min");
+  //csvFile.print(vol_per_min);
+  csvFile.println("0,logfile");
+  csvFile.close();
+}
+#endif
+
+#ifdef nex_enable
+void pStp_enaPopCallback(void *ptr){
+ sendCommand("vis p1,1");
+ sendCommand("vis p2,0");
+ /*Serial1.print("vis p2,0");
+ Serial1.write(0xff);
+ Serial1.write(0xff);
+ Serial1.write(0xff);
+ Serial1.print("vis p1,1");
+ Serial1.write(0xff);
+ Serial1.write(0xff);
+ Serial1.write(0xff);*/
+ stp_state = false;
+ digitalWrite(ena_Pin, HIGH);
+ sendCommand("ref 0");
+}
+void pStp_disPopCallback(void *ptr){
+ sendCommand("vis p1,0");
+ sendCommand("vis p2,1");
+ /*Serial1.print("vis p1,0");
+ Serial1.write(0xff);
+ Serial1.write(0xff);
+ Serial1.write(0xff);
+ Serial1.print("vis p2,1");
+ Serial1.write(0xff);
+ Serial1.write(0xff);
+ Serial1.write(0xff);*/
+ stp_state = true;
+ digitalWrite(ena_Pin, LOW);
+ sendCommand("ref 0");
+}
+void pFsw_enaPopCallback(void *ptr){
+ sendCommand("vis p3,0");
+ sendCommand("vis p4,1");
+ /*Serial1.print("vis p3,0");
+ Serial1.write(0xff);
+ Serial1.write(0xff);
+ Serial1.write(0xff);
+ Serial1.print("vis p4,1");
+ Serial1.write(0xff);
+ Serial1.write(0xff);
+ Serial1.write(0xff);*/
+ fsw_state = false;
+ sendCommand("ref 0");
+}
+void pFsw_disPopCallback(void *ptr){
+ sendCommand("vis p3,1");
+ sendCommand("vis p4,0");
+ /*Serial1.print("vis p4,0");
+ Serial1.write(0xff);
+ Serial1.write(0xff);
+ Serial1.write(0xff);
+ Serial1.print("vis p3,1");
+ Serial1.write(0xff);
+ Serial1.write(0xff);
+ Serial1.write(0xff);*/
+ fsw_state = true;
+ sendCommand("ref 0");
+}
+void pStp_ena2PopCallback(void *ptr){
+ sendCommand("vis p1,1");
+ sendCommand("vis p0,0");
+ /*Serial1.print("vis p0,0");
+ Serial1.write(0xff);
+ Serial1.write(0xff);
+ Serial1.write(0xff);
+ Serial1.print("vis p1,1");
+ Serial1.write(0xff);
+ Serial1.write(0xff);
+ Serial1.write(0xff);*/
+ stp_state = false;
+ digitalWrite(ena_Pin, HIGH);
+ sendCommand("ref 0");
+}
+void pStp_dis2PopCallback(void *ptr){
+ sendCommand("vis p1,0");
+ sendCommand("vis p0,1");
+ /*Serial1.print("vis p1,0");
+ Serial1.write(0xff);
+ Serial1.write(0xff);
+ Serial1.write(0xff);
+ Serial1.print("vis p0,1");
+ Serial1.write(0xff);
+ Serial1.write(0xff);
+ Serial1.write(0xff);*/
+ stp_state = true;
+ digitalWrite(ena_Pin, LOW);
+ sendCommand("ref 0");
+}
+void bcSavePopCallback(void *ptr){
+ SD_WriteSettings();
+}
+#endif
+void setup() {
+  Serial.begin(9600);
+  for(int i=10 ; i>0 ; i--){
+  delayMicroseconds(1000000);
+  Serial.println(i);
+  }
+
+  pinMode(min_Limit_sw_Pin, INPUT);
+  //attachInterrupt(digitalPinToInterrupt(min_Limit_sw_Pin), min_Limit, LOW);
+  pinMode(max_Limit_sw_Pin, INPUT);
+  //attachInterrupt(digitalPinToInterrupt(max_Limit_sw_Pin), max_Limit, LOW);
+  pinMode(estop_sw_Pin, INPUT);
+  //attachInterrupt(digitalPinToInterrupt(estop_sw_Pin), e_Stop, LOW);
+
+  pinMode(foot_sw_Pin, INPUT);
+
+  pinMode(ena_Pin, OUTPUT);
+  pinMode(dir_Pin, OUTPUT);
+  pinMode(pul_Pin, OUTPUT);
+  //pinMode(LED_BUILTIN, OUTPUT);
+  delayMicroseconds(5000000);
+  Serial.println("pinmode setup complete");
+
+  #ifdef sd_enable
+  SD_Begin();
+  delayMicroseconds(1000000);
+  Serial.println("reading usb");
+  for(int i=5 ; i>0 ; i--){
+  delayMicroseconds(1000000);
+  Serial.println(i);
+  }
+  SD_ReadSettings();
+  #endif
+  #ifdef nex_enable
+  //Serial1.begin(9600);
+
+  //pinPeripheral(tx_Pin, PIO_SERCOM);
+  //pinPeripheral(rx_Pin, PIO_SERCOM_ALT);
+
+  //Serial1.begin(9600);
+
+  nexInit();
+  delayMicroseconds(2000000);
+  Serial.println("nexinit");
+
+  pError.attachPop(perrorPopCallback, &pError);
+  bVol.attachPop(bVolPopCallback, &bVol);
+  bDisp.attachPop(bDispPopCallback, &bDisp);
+  bZero.attachPop(bZeroPopCallback, &bZero);
+  bSetup.attachPop(bSetupPopCallback, &bSetup);
+  pStp_ena.attachPop(pStp_enaPopCallback, &pStp_ena);
+  pStp_dis.attachPop(pStp_disPopCallback, &pStp_dis);
+  pFsw_ena.attachPop(pFsw_enaPopCallback, &pFsw_ena);
+  pFsw_dis.attachPop(pFsw_disPopCallback, &pFsw_dis);
+
+  mlstepBox.attachPop(mlstepBoxPopCallback, &mlstepBox);
+  mlminBox.attachPop(mlminBoxPopCallback, &mlminBox);
+  bcBack.attachPop(bcBackPopCallback, &bcBack);
+  bcSave.attachPop(bcSavePopCallback, &bcSave);
+
+  btBack.attachPop(btBackPopCallback, &btBack);
+  btCal.attachPop(btCalPopCallback, &btCal);
+  bt1.attachPop(bt1PopCallback, &bt1);
+  bt5.attachPop(bt5PopCallback, &bt5);
+  bt10.attachPop(bt10PopCallback, &bt10);
+  btUP.attachPop(btUPPopCallback, &btUP);
+  btDN.attachPop(btDNPopCallback, &btDN);
+  pStp_ena2.attachPop(pStp_ena2PopCallback, &pStp_ena2);
+  pStp_dis2.attachPop(pStp_dis2PopCallback, &pStp_dis2);
+
+  bv0.attachPop(bv0PopCallback, &bv0);
+  bv1.attachPop(bv1PopCallback, &bv1);
+  bv2.attachPop(bv2PopCallback, &bv2);
+  bv3.attachPop(bv3PopCallback, &bv3);
+  bv4.attachPop(bv4PopCallback, &bv4);
+  bv5.attachPop(bv5PopCallback, &bv5);
+  bv6.attachPop(bv6PopCallback, &bv6);
+  bv7.attachPop(bv7PopCallback, &bv7);
+  bv8.attachPop(bv8PopCallback, &bv8);
+  bv9.attachPop(bv9PopCallback, &bv9);
+  bv10.attachPop(bv10PopCallback, &bv10);
+  bv11.attachPop(bv11PopCallback, &bv11);
+  bv15.attachPop(bv15PopCallback, &bv15);
+  bv20.attachPop(bv20PopCallback, &bv20);
+  bv16.attachPop(bv16PopCallback, &bv16);
+  
+  
+/*
+ for(int i=5 ; i>0 ; i--){
+  delayMicroseconds(1000000);
+  Serial.println(i);
+  }
+  while(!page3.show()){
+
+  }
+  Serial.println("show cal");
+ for(int i=5 ; i>0 ; i--){
+  delayMicroseconds(1000000);
+  Serial.println(i);
+  }
+  while(!page2.show()){
+
+  }
+  Serial.println("show setup");
+  for(int i=5 ; i>0 ; i--){
+  delayMicroseconds(1000000);
+  Serial.println(i);
+  }
+  while(!page1.show()){
+
+  }
+  Serial.println("show volume");
+  for(int i=5 ; i>0 ; i--){
+  delayMicroseconds(1000000);
+  Serial.println(i);
+  }
+  while(!page0.show()){
+
+  }
+  for(int i=5 ; i>0 ; i--){
+  delayMicroseconds(1000000);
+  Serial.println(i);
+  }*/
+  //page0.show();
+  //Serial.println("show main");
+  delayMicroseconds(2000000);
+  update_icons();
+
+  #endif
+
+
+}
+
+void loop() {
+  
+#ifdef nex_enable
+  nexLoop(nex_listen_list);
+#endif  
+
+  if(fsw_state && !digitalRead(foot_sw_Pin)){
+   Serial.println("foot switch triggered");
+   if(!error_state){
+   dispense();
+   }
+  }
+
+  //digitalWrite(LED_BUILTIN, HIGH);   // turn the LED on (HIGH is the voltage level)
+  //delay(1000);                       // wait for a second
+  //digitalWrite(LED_BUILTIN, LOW);    // turn the LED off by making the voltage LOW
+  //delay(1000);
+}
+
