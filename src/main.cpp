@@ -1,6 +1,11 @@
-
-
-
+/************************************************
+ *
+ * 
+ * 
+ * 
+ * 
+ *  
+ ************************************************/
 
 
 #include <Arduino.h>
@@ -12,11 +17,11 @@
 #define nex_enable
 
 #ifdef nex_enable
-#include "Nextion.h"
-#include "NexButton.h"
-#include "NexText.h"
-#include "NexProgressBar.h"
-#include "NexPicture.h"
+  #include "Nextion.h"
+  #include "NexButton.h"
+  #include "NexText.h"
+  #include "NexProgressBar.h"
+  #include "NexPicture.h"
 //#include <SoftwareSerial.h>
 #endif
 
@@ -30,10 +35,11 @@ const byte dir_Pin = 19; //A2
 const byte pul_Pin = 17; //A4
 const byte foot_sw_Pin = 6;
 const int chipSelect = SDCARD_SS_PIN;
+
 static unsigned long last_interrupt = 0;
 static unsigned long last_trigger = 0;
-char NEWLINE = '\n';
-char COMMA = ',';
+static char NEWLINE = '\n';
+static char COMMA = ',';
 
 bool minLimit_trigger = false;
 bool maxLimit_trigger = false;
@@ -59,7 +65,6 @@ int jogAmt = 100;
 int mode = 1; //1,2,3
 int pos = 0;
 int errcode = 0;
-
 
 char buffer[100] = {0};
 
@@ -110,7 +115,6 @@ NexPage page0    = NexPage(0, 0, "page0");
 NexPage page1    = NexPage(1, 0, "page1");
 NexPage page2    = NexPage(2, 0, "page2");
 NexPage page3    = NexPage(3, 0, "page3");
-
 
 //Page 0
 NexButton bDisp = NexButton(0, 5, "bDisp");
@@ -710,7 +714,6 @@ void cal1600(){
  dispensed = false;
  sendCommand("page 1");
 }
-
 void min_Limit(){
   if(millis()-last_interrupt > 5000){
     minLimit_trigger = true;
@@ -740,7 +743,6 @@ void e_Stop(){
 void rstMCU(){
  NVIC_SystemReset();
 }
-
 void safetyEna(){
  attachInterrupt(digitalPinToInterrupt(min_Limit_sw_Pin), min_Limit, RISING);
  attachInterrupt(digitalPinToInterrupt(max_Limit_sw_Pin), max_Limit, RISING);
@@ -753,6 +755,7 @@ void safetyDis(){
  detachInterrupt(digitalPinToInterrupt(estop_sw_Pin));
  //Serial.println("interrupts disabled");
 }
+
 #ifdef nex_enable
 void attach_Callbacks(){
   pError.attachPop(perrorPopCallback, &pError);
@@ -805,15 +808,12 @@ void perrorPopCallback(void *ptr){
  eStop_trigger = false;
  dispensed = false;
 }
-
 void bZeroPopCallback(void *ptr){ 
  move_to_zero();
 }
-
 void bDispPopCallback(void *ptr){ 
  dispense();
 }
-
 void bt1PopCallback(void *ptr){ 
  jogAmt = 400;
  //Serial.print("Jog set to ");
@@ -845,7 +845,6 @@ void btUPPopCallback(void *ptr){
    delayMicroseconds(1000);
   }
 }
-
 void btDNPopCallback(void *ptr){
   //digitalWrite(ena_Pin, HIGH);
   //delayMicroseconds(100);
@@ -862,7 +861,6 @@ void btDNPopCallback(void *ptr){
    delayMicroseconds(1000);
   }
 }
-
 void bv11PopCallback(void *ptr){
   // 
   delayMicroseconds(100);
