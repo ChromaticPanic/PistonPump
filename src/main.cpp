@@ -1,3 +1,8 @@
+
+
+
+
+
 #include <Arduino.h>
 #include "wiring_private.h"
 #include <SPI.h>
@@ -27,8 +32,8 @@ const byte foot_sw_Pin = 6;
 const int chipSelect = SDCARD_SS_PIN;
 static unsigned long last_interrupt = 0;
 static unsigned long last_trigger = 0;
-const char NEWLINE = '\n';
-const char COMMA = ',';
+char NEWLINE = '\n';
+char COMMA = ',';
 
 bool minLimit_trigger = false;
 bool maxLimit_trigger = false;
@@ -59,6 +64,7 @@ int errcode = 0;
 char buffer[100] = {0};
 
 void trigger_check();
+void set_Pins();
 
 #ifdef nex_enable
 void bVolPopCallback(void *ptr);
@@ -87,6 +93,7 @@ void rstScnPopCallback(void *ptr);
 void rstCtlPopCallback(void *ptr);
 void abortBtnPopCallback(void *ptr);
 void update_icons();
+void attach_Callbacks();
 
 NexPage page0    = NexPage(0, 0, "page0");
 NexPage page1    = NexPage(1, 0, "page1");
@@ -452,7 +459,7 @@ void SD_ReadSettings(){
 
   // Read the file and store the data.
     
-  n = readField(&csvFile, str, sizeof(str), COMMA);
+  n = readField(&csvFile, str, sizeof(str), &COMMA);
   if (n == 0) {
     //Serial.println("Too few lines");
   }
@@ -460,9 +467,9 @@ void SD_ReadSettings(){
   if (ptr == str) {
     //Serial.println("bad number");
   }
-  n = readField(&csvFile, str, sizeof(str), NEWLINE);
+  n = readField(&csvFile, str, sizeof(str), &NEWLINE);
 
-  n = readField(&csvFile, str, sizeof(str), COMMA);
+  n = readField(&csvFile, str, sizeof(str), &COMMA);
   if (n == 0) {
     //Serial.println("Too few lines");
   }
@@ -470,9 +477,9 @@ void SD_ReadSettings(){
   if (ptr == str) {
     //Serial.println("bad number");
   }
-  n = readField(&csvFile, str, sizeof(str), NEWLINE);
+  n = readField(&csvFile, str, sizeof(str), &NEWLINE);
 
-  n = readField(&csvFile, str, sizeof(str), COMMA);
+  n = readField(&csvFile, str, sizeof(str), &COMMA);
   if (n == 0) {
     //Serial.println("Too few lines");
   }
@@ -480,9 +487,9 @@ void SD_ReadSettings(){
   if (ptr == str) {
     //Serial.println("bad number");
   }
-  n = readField(&csvFile, str, sizeof(str), NEWLINE);
+  n = readField(&csvFile, str, sizeof(str), &NEWLINE);
 
-  n = readField(&csvFile, str, sizeof(str), COMMA);
+  n = readField(&csvFile, str, sizeof(str), &COMMA);
   if (n == 0) {
     //Serial.println("Too few lines");
   }
@@ -490,9 +497,9 @@ void SD_ReadSettings(){
   if (ptr == str) {
     //Serial.println("bad number");
   }
-  n = readField(&csvFile, str, sizeof(str), NEWLINE);
+  n = readField(&csvFile, str, sizeof(str), &NEWLINE);
 
-  n = readField(&csvFile, str, sizeof(str), COMMA);
+  n = readField(&csvFile, str, sizeof(str), &COMMA);
   if (n == 0) {
     //Serial.println("Too few lines");
   }
@@ -500,9 +507,9 @@ void SD_ReadSettings(){
   if (ptr == str) {
     //Serial.println("bad number");
   }
-  n = readField(&csvFile, str, sizeof(str), NEWLINE);
+  n = readField(&csvFile, str, sizeof(str), &NEWLINE);
 
-  n = readField(&csvFile, str, sizeof(str), COMMA);
+  n = readField(&csvFile, str, sizeof(str), &COMMA);
   if (n == 0) {
     //Serial.println("Too few lines");
   }
@@ -510,9 +517,9 @@ void SD_ReadSettings(){
   if (ptr == str) {
     //Serial.println("bad number");
   }
-  n = readField(&csvFile, str, sizeof(str), NEWLINE);
+  n = readField(&csvFile, str, sizeof(str), &NEWLINE);
 
-  n = readField(&csvFile, str, sizeof(str), COMMA);
+  n = readField(&csvFile, str, sizeof(str), &COMMA);
   if (n == 0) {
     //Serial.println("Too few lines");
   }
@@ -520,9 +527,9 @@ void SD_ReadSettings(){
   if (ptr == str) {
     //Serial.println("bad number");
   }
-  n = readField(&csvFile, str, sizeof(str), NEWLINE);
+  n = readField(&csvFile, str, sizeof(str), &NEWLINE);
 
-  n = readField(&csvFile, str, sizeof(str), COMMA);
+  n = readField(&csvFile, str, sizeof(str), &COMMA);
   if (n == 0) {
     //Serial.println("Too few lines");
   }
@@ -530,7 +537,7 @@ void SD_ReadSettings(){
   if (ptr == str) {
     //Serial.println("bad number");
   }
-  n = readField(&csvFile, str, sizeof(str), NEWLINE);
+  n = readField(&csvFile, str, sizeof(str), &NEWLINE);
  // Allow missing endl at eof.
  if (str[n-1] != NEWLINE && csvFile.available()) {
    //Serial.println("missing endl");
@@ -597,80 +604,30 @@ void SD_WriteSettings(){
 }
 #endif
 
-
-
-
 void setup() {
+
   Serial.begin(9600);
   for(int i=5 ; i>0 ; i--){
-  delayMicroseconds(1000000);
-  //Serial.println(i);
+    delayMicroseconds(1000000);
   }
 
-  pinMode(min_Limit_sw_Pin, INPUT);
-  pinMode(max_Limit_sw_Pin, INPUT);
-  pinMode(estop_sw_Pin, INPUT);
-  
-  pinMode(foot_sw_Pin, INPUT);
-
-  pinMode(ena_Pin, OUTPUT);
-  pinMode(dir_Pin, OUTPUT);
-  pinMode(pul_Pin, OUTPUT);
-  //pinMode(LED_BUILTIN, OUTPUT);
+  set_Pins();
   delayMicroseconds(1000000);
-  //Serial.println("pinmode setup complete");
-
+  
   #ifdef sd_enable
   SD_Begin();
   delayMicroseconds(1000000);
   //Serial.println("reading usb");
   for(int i=5 ; i>0 ; i--){
-  delayMicroseconds(1000000);
-  //Serial.println(i);
+    delayMicroseconds(1000000);
   }
   SD_ReadSettings();
   #endif
+
   #ifdef nex_enable
-  //Serial1.begin(9600);
-
-  //pinPeripheral(tx_Pin, PIO_SERCOM);
-  //pinPeripheral(rx_Pin, PIO_SERCOM_ALT);
-
-  //Serial1.begin(9600);
-
   nexInit();
   delayMicroseconds(2000000);
-  //Serial.println("nexinit");
-
-  pError.attachPop(perrorPopCallback, &pError);
-  bVol.attachPop(bVolPopCallback, &bVol);
-  bDisp.attachPop(bDispPopCallback, &bDisp);
-  bZero.attachPop(bZeroPopCallback, &bZero);
-  pStp_ena.attachPop(pStp_enaPopCallback, &pStp_ena);
-  pStp_dis.attachPop(pStp_disPopCallback, &pStp_dis);
-  pFsw_ena.attachPop(pFsw_enaPopCallback, &pFsw_ena);
-  pFsw_dis.attachPop(pFsw_disPopCallback, &pFsw_dis);
-
-  mlstepBox.attachPop(mlstepBoxPopCallback, &mlstepBox);
-  mlminBox.attachPop(mlminBoxPopCallback, &mlminBox);
-  bcSave.attachPop(bcSavePopCallback, &bcSave);
-  bcMaxvol.attachPop(bcMaxvolPopCallback, &bcMaxvol);
-
-  bt1.attachPop(bt1PopCallback, &bt1);
-  bt5.attachPop(bt5PopCallback, &bt5);
-  bt10.attachPop(bt10PopCallback, &bt10);
-  btUP.attachPop(btUPPopCallback, &btUP);
-  btDN.attachPop(btDNPopCallback, &btDN);
-  pStp_ena2.attachPop(pStp_ena2PopCallback, &pStp_ena2);
-  pStp_dis2.attachPop(pStp_dis2PopCallback, &pStp_dis2);
-  sdelayBox.attachPop(sdelayBoxPopCallback, &sdelayBox);
-
-  bv11.attachPop(bv11PopCallback, &bv11);
-  bv16.attachPop(bv16PopCallback, &bv16);
-  
-  rstCtl.attachPop(rstCtlPopCallback, &rstCtl);
-  rstScn.attachPop(rstScnPopCallback, &rstScn);
-  abortBtn.attachPop(abortBtnPopCallback, &abortBtn);
+  attach_Callbacks();
   #endif
 
   memset(buffer, 0, sizeof(buffer));
@@ -719,6 +676,18 @@ void loop() {
 
   trigger_check();
 
+}
+
+void set_Pins(){
+  pinMode(min_Limit_sw_Pin, INPUT);
+  pinMode(max_Limit_sw_Pin, INPUT);
+  pinMode(estop_sw_Pin, INPUT);
+  pinMode(foot_sw_Pin, INPUT);
+  pinMode(ena_Pin, OUTPUT);
+  pinMode(dir_Pin, OUTPUT);
+  pinMode(pul_Pin, OUTPUT);
+  //pinMode(LED_BUILTIN, OUTPUT);
+  //Serial.println("pinmode setup complete");
 }
 
 void trigger_check(){
@@ -775,6 +744,33 @@ void trigger_check(){
 }
 
 #ifdef nex_enable
+void attach_Callbacks(){
+  pError.attachPop(perrorPopCallback, &pError);
+  bVol.attachPop(bVolPopCallback, &bVol);
+  bDisp.attachPop(bDispPopCallback, &bDisp);
+  bZero.attachPop(bZeroPopCallback, &bZero);
+  pStp_ena.attachPop(pStp_enaPopCallback, &pStp_ena);
+  pStp_dis.attachPop(pStp_disPopCallback, &pStp_dis);
+  pFsw_ena.attachPop(pFsw_enaPopCallback, &pFsw_ena);
+  pFsw_dis.attachPop(pFsw_disPopCallback, &pFsw_dis);
+  mlstepBox.attachPop(mlstepBoxPopCallback, &mlstepBox);
+  mlminBox.attachPop(mlminBoxPopCallback, &mlminBox);
+  bcSave.attachPop(bcSavePopCallback, &bcSave);
+  bcMaxvol.attachPop(bcMaxvolPopCallback, &bcMaxvol);
+  bt1.attachPop(bt1PopCallback, &bt1);
+  bt5.attachPop(bt5PopCallback, &bt5);
+  bt10.attachPop(bt10PopCallback, &bt10);
+  btUP.attachPop(btUPPopCallback, &btUP);
+  btDN.attachPop(btDNPopCallback, &btDN);
+  pStp_ena2.attachPop(pStp_ena2PopCallback, &pStp_ena2);
+  pStp_dis2.attachPop(pStp_dis2PopCallback, &pStp_dis2);
+  sdelayBox.attachPop(sdelayBoxPopCallback, &sdelayBox);
+  bv11.attachPop(bv11PopCallback, &bv11);
+  bv16.attachPop(bv16PopCallback, &bv16);
+  rstCtl.attachPop(rstCtlPopCallback, &rstCtl);
+  rstScn.attachPop(rstScnPopCallback, &rstScn);
+  abortBtn.attachPop(abortBtnPopCallback, &abortBtn);
+}
 void bVolPopCallback(void *ptr){ 
  //Serial.println("Mode 1");
  mode = 1;
