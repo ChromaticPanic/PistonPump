@@ -65,6 +65,16 @@ char buffer[100] = {0};
 
 void trigger_check();
 void set_Pins();
+void move_to_zero();
+void move_to_max();
+void dispense();
+void cal1600();
+void min_Limit();
+void max_Limit();
+void e_Stop();
+void rstMCU();
+void safetyEna();
+void safetyDis();
 
 #ifdef nex_enable
 void bVolPopCallback(void *ptr);
@@ -94,6 +104,7 @@ void rstCtlPopCallback(void *ptr);
 void abortBtnPopCallback(void *ptr);
 void update_icons();
 void attach_Callbacks();
+void update_Values();
 
 NexPage page0    = NexPage(0, 0, "page0");
 NexPage page1    = NexPage(1, 0, "page1");
@@ -170,245 +181,6 @@ void SERCOM2_Handler()
  Serial1.IrqHandler();
 }*/
 #endif
-
-void move_to_zero(){ //454
- //Serial.println("Moving to zero");
-  zero_block = true;
-  if(stp_state){
-   digitalWrite(ena_Pin, HIGH);
-   delayMicroseconds(100);
-   
-   digitalWrite(dir_Pin, HIGH);
-   delayMicroseconds(100);
-
-   while(!minLimit_trigger){
-    if(error_state || !stp_state){
-     zero_block = false;
-     sendCommand("page 0");
-     return;
-    }
-    //nexLoop(nex_listen_list);
-    digitalWrite(pul_Pin, HIGH);
-    delayMicroseconds(454);
-    digitalWrite(pul_Pin, LOW);
-    delayMicroseconds(454);
-   }
-
-  digitalWrite(dir_Pin, LOW);
-  delayMicroseconds(200000);
-
-  for (int i = 0; i < 200; i++){
-   if(error_state || !stp_state){
-    zero_block = false;
-    sendCommand("page 0");
-    return;
-   }
-   //nexLoop(nex_listen_list);
-   digitalWrite(pul_Pin, HIGH);
-   delayMicroseconds(454);
-   digitalWrite(pul_Pin, LOW);
-   delayMicroseconds(454);
-  }
-  pos = 0;
-  }
- minLimit_trigger = false; 
- zero_block = false;
- dispensed = false;
- sendCommand("page 0");
-}
-void move_to_max(){
- //Serial.println("Moving to zero");
-  max_block = true;
-  if(stp_state){
-   digitalWrite(ena_Pin, HIGH);
-   delayMicroseconds(100);
-   
-   digitalWrite(dir_Pin, LOW);
-   delayMicroseconds(100);
-
-   while(!maxLimit_trigger){
-    if(error_state || !stp_state){
-     max_block = false;
-     sendCommand("page 0");
-     return;
-    }
-    //nexLoop(nex_listen_list);
-    digitalWrite(pul_Pin, HIGH);
-    delayMicroseconds(454);
-    digitalWrite(pul_Pin, LOW);
-    delayMicroseconds(454);
-    pos++;
-   }
-
-  digitalWrite(dir_Pin, HIGH);
-  delayMicroseconds(200000);
-
-  for (int i = 0; i < 200; i++){
-   if(error_state || !stp_state){
-    max_block = false;
-    sendCommand("page 0");
-    return;
-   }
-   //nexLoop(nex_listen_list);
-   digitalWrite(pul_Pin, HIGH);
-   delayMicroseconds(454);
-   digitalWrite(pul_Pin, LOW);
-   delayMicroseconds(454);
-   pos--;
-  }
-  //pos = 0;
-  }
- maxLimit_trigger = false; 
- max_block = false;
- dispensed = false;
- max_Vol = vol_per_1600steps / 1600 * pos;
- memset(buffer, 0, sizeof(buffer));
- snprintf(buffer, sizeof(buffer), "%.2f", max_Vol);
- maxvol0.setText(buffer);
- delayMicroseconds(200000);
- move_to_zero();
- sendCommand("page 3");
-}
-void dispense(){
- //Serial.println("Dispensing");
-  //Serial.print("Volume(mL)   :   ");
-  //Serial.println(volume);
-  //Serial.print("mL/1600 Steps:   ");
-  //Serial.println(vol_per_1600steps);
-  //Serial.print("mL/min       :   ");
-  //Serial.println(vol_per_min);
-  if(stp_state){
-   digitalWrite(ena_Pin, HIGH);
-   delayMicroseconds(100);
-   
-   // microseconds/step = mL/step * min/mL * 60000000 microseconds/min
-
-   speed = (( (vol_per_1600steps / 1600) / vol_per_min) * 30000000);
-   //Serial.print("Speed : "); 
-   //Serial.println(speed); 
-   if (volume > max_Vol){
-
-   } else if (volume > 0) {
-    
-    digitalWrite(dir_Pin, LOW);
-    delayMicroseconds(100);
-
-    steps = volume / (vol_per_1600steps/1600);
-
-     for (int i = 0; i < steps; i++){
-      if(error_state || !stp_state){
-       sendCommand("page 0");
-       return;
-      }
-      //nexLoop(nex_listen_list);
-      digitalWrite(pul_Pin, HIGH);
-      delayMicroseconds(speed);
-      digitalWrite(pul_Pin, LOW);
-      delayMicroseconds(speed);
-     }
-
-     digitalWrite(dir_Pin, HIGH);
-     delayMicroseconds(sdelay);
-     //Serial.println(sdelay);
-
-     for (int i = 0; i < steps; i++){
-      if(error_state || !stp_state){
-       sendCommand("page 0");
-       return;
-      }
-      //nexLoop(nex_listen_list);
-      digitalWrite(pul_Pin, HIGH);
-      delayMicroseconds(speed);
-      digitalWrite(pul_Pin, LOW);
-      delayMicroseconds(speed);
-     }
-   }
-  }
-  dispensed = false;
-sendCommand("page 0");
-}
-void cal1600(){
- //Serial.println("Dispensing cal1600");
- if(stp_state){
-  digitalWrite(ena_Pin, HIGH);
-  delayMicroseconds(100);
-
-  digitalWrite(dir_Pin, LOW);
-  delayMicroseconds(100);
-
-  for (int i = 0; i < 1600; i++){
-   if(error_state || !stp_state){
-    sendCommand("page 0");
-       return;
-      }
-   //nexLoop(nex_listen_list);
-   digitalWrite(pul_Pin, HIGH);
-   delayMicroseconds(454);
-   digitalWrite(pul_Pin, LOW);
-   delayMicroseconds(454);
-  }
-
-  digitalWrite(dir_Pin, HIGH);
-  delayMicroseconds(sdelay);
-
-  for (int i = 0; i < 1600; i++){
-   if(error_state || !stp_state){
-    sendCommand("page 0");
-       return;
-      }
-    //nexLoop(nex_listen_list);
-   digitalWrite(pul_Pin, HIGH);
-   delayMicroseconds(454);
-   digitalWrite(pul_Pin, LOW);
-   delayMicroseconds(454);
-  }
- }
- dispensed = false;
- sendCommand("page 1");
-}
-
-void min_Limit() {
-  if(millis()-last_interrupt > 5000){
-    minLimit_trigger = true;
-    if(!zero_block){
-     error_state = true;
-    }
-  }
-  last_interrupt = millis();
-   
-}
-void max_Limit() {
-  if(millis()-last_interrupt > 5000){
-    maxLimit_trigger = true;
-    if(!max_block){
-     error_state = true;
-    }
-   }
-  last_interrupt = millis();
-}
-void e_Stop() {
-  if(millis()-last_interrupt > 5000){
-    eStop_trigger = true;
-    error_state = true;
-   }
-  last_interrupt = millis();
-}
-void rstMCU(){
- NVIC_SystemReset();
-}
-
-void safetyEna(){
- attachInterrupt(digitalPinToInterrupt(min_Limit_sw_Pin), min_Limit, RISING);
- attachInterrupt(digitalPinToInterrupt(max_Limit_sw_Pin), max_Limit, RISING);
- attachInterrupt(digitalPinToInterrupt(estop_sw_Pin), e_Stop, RISING);
- //Serial.println("interrupts enabled");
-}
-void safetyDis(){
- detachInterrupt(digitalPinToInterrupt(min_Limit_sw_Pin));
- detachInterrupt(digitalPinToInterrupt(max_Limit_sw_Pin));
- detachInterrupt(digitalPinToInterrupt(estop_sw_Pin));
- //Serial.println("interrupts disabled");
-}
 
 #ifdef sd_enable
 bool SD_Begin(void){
@@ -628,8 +400,35 @@ void setup() {
   nexInit();
   delayMicroseconds(2000000);
   attach_Callbacks();
+  update_Values();
   #endif
 
+  safetyEna(); 
+  
+}
+
+void loop() {
+  
+  #ifdef nex_enable
+    nexLoop(nex_listen_list);
+  #endif  
+
+  trigger_check();
+
+}
+
+void set_Pins(){
+  pinMode(min_Limit_sw_Pin, INPUT);
+  pinMode(max_Limit_sw_Pin, INPUT);
+  pinMode(estop_sw_Pin, INPUT);
+  pinMode(foot_sw_Pin, INPUT);
+  pinMode(ena_Pin, OUTPUT);
+  pinMode(dir_Pin, OUTPUT);
+  pinMode(pul_Pin, OUTPUT);
+  //pinMode(LED_BUILTIN, OUTPUT);
+  //Serial.println("pinmode setup complete");
+}
+void update_Values(){
   memset(buffer, 0, sizeof(buffer));
   snprintf(buffer, sizeof(buffer), "%.2f", volume);
   vol0.setText(buffer);
@@ -663,33 +462,7 @@ void setup() {
   maxcal0.setText(buffer);
 
   sendCommand("page 0");
-  safetyEna(); 
- 
- 
 }
-
-void loop() {
-  
-  #ifdef nex_enable
-    nexLoop(nex_listen_list);
-  #endif  
-
-  trigger_check();
-
-}
-
-void set_Pins(){
-  pinMode(min_Limit_sw_Pin, INPUT);
-  pinMode(max_Limit_sw_Pin, INPUT);
-  pinMode(estop_sw_Pin, INPUT);
-  pinMode(foot_sw_Pin, INPUT);
-  pinMode(ena_Pin, OUTPUT);
-  pinMode(dir_Pin, OUTPUT);
-  pinMode(pul_Pin, OUTPUT);
-  //pinMode(LED_BUILTIN, OUTPUT);
-  //Serial.println("pinmode setup complete");
-}
-
 void trigger_check(){
  if(minLimit_trigger && !zero_block){
   //Serial.println("min limit triggered");
@@ -742,7 +515,244 @@ void trigger_check(){
   }
  }
 }
+void move_to_zero(){ //454
+ //Serial.println("Moving to zero");
+  zero_block = true;
+  if(stp_state){
+   digitalWrite(ena_Pin, HIGH);
+   delayMicroseconds(100);
+   
+   digitalWrite(dir_Pin, HIGH);
+   delayMicroseconds(100);
 
+   while(!minLimit_trigger){
+    if(error_state || !stp_state){
+     zero_block = false;
+     sendCommand("page 0");
+     return;
+    }
+    //nexLoop(nex_listen_list);
+    digitalWrite(pul_Pin, HIGH);
+    delayMicroseconds(454);
+    digitalWrite(pul_Pin, LOW);
+    delayMicroseconds(454);
+   }
+
+  digitalWrite(dir_Pin, LOW);
+  delayMicroseconds(200000);
+
+  for (int i = 0; i < 200; i++){
+   if(error_state || !stp_state){
+    zero_block = false;
+    sendCommand("page 0");
+    return;
+   }
+   //nexLoop(nex_listen_list);
+   digitalWrite(pul_Pin, HIGH);
+   delayMicroseconds(454);
+   digitalWrite(pul_Pin, LOW);
+   delayMicroseconds(454);
+  }
+  pos = 0;
+  }
+ minLimit_trigger = false; 
+ zero_block = false;
+ dispensed = false;
+ sendCommand("page 0");
+}
+void move_to_max(){
+ //Serial.println("Moving to zero");
+  max_block = true;
+  if(stp_state){
+   digitalWrite(ena_Pin, HIGH);
+   delayMicroseconds(100);
+   
+   digitalWrite(dir_Pin, LOW);
+   delayMicroseconds(100);
+
+   while(!maxLimit_trigger){
+    if(error_state || !stp_state){
+     max_block = false;
+     sendCommand("page 0");
+     return;
+    }
+    //nexLoop(nex_listen_list);
+    digitalWrite(pul_Pin, HIGH);
+    delayMicroseconds(454);
+    digitalWrite(pul_Pin, LOW);
+    delayMicroseconds(454);
+    pos++;
+   }
+
+  digitalWrite(dir_Pin, HIGH);
+  delayMicroseconds(200000);
+
+  for (int i = 0; i < 200; i++){
+   if(error_state || !stp_state){
+    max_block = false;
+    sendCommand("page 0");
+    return;
+   }
+   //nexLoop(nex_listen_list);
+   digitalWrite(pul_Pin, HIGH);
+   delayMicroseconds(454);
+   digitalWrite(pul_Pin, LOW);
+   delayMicroseconds(454);
+   pos--;
+  }
+  //pos = 0;
+  }
+ maxLimit_trigger = false; 
+ max_block = false;
+ dispensed = false;
+ max_Vol = vol_per_1600steps / 1600 * pos;
+ memset(buffer, 0, sizeof(buffer));
+ snprintf(buffer, sizeof(buffer), "%.2f", max_Vol);
+ maxvol0.setText(buffer);
+ delayMicroseconds(200000);
+ move_to_zero();
+ sendCommand("page 3");
+}
+void dispense(){
+ //Serial.println("Dispensing");
+  //Serial.print("Volume(mL)   :   ");
+  //Serial.println(volume);
+  //Serial.print("mL/1600 Steps:   ");
+  //Serial.println(vol_per_1600steps);
+  //Serial.print("mL/min       :   ");
+  //Serial.println(vol_per_min);
+  if(stp_state){
+   digitalWrite(ena_Pin, HIGH);
+   delayMicroseconds(100);
+   
+   // microseconds/step = mL/step * min/mL * 60000000 microseconds/min
+
+   speed = (( (vol_per_1600steps / 1600) / vol_per_min) * 30000000);
+   //Serial.print("Speed : "); 
+   //Serial.println(speed); 
+   if (volume > max_Vol){
+
+   } else if (volume > 0) {
+    
+    digitalWrite(dir_Pin, LOW);
+    delayMicroseconds(100);
+
+    steps = volume / (vol_per_1600steps/1600);
+
+     for (int i = 0; i < steps; i++){
+      if(error_state || !stp_state){
+       sendCommand("page 0");
+       return;
+      }
+      //nexLoop(nex_listen_list);
+      digitalWrite(pul_Pin, HIGH);
+      delayMicroseconds(speed);
+      digitalWrite(pul_Pin, LOW);
+      delayMicroseconds(speed);
+     }
+
+     digitalWrite(dir_Pin, HIGH);
+     delayMicroseconds(sdelay);
+     //Serial.println(sdelay);
+
+     for (int i = 0; i < steps; i++){
+      if(error_state || !stp_state){
+       sendCommand("page 0");
+       return;
+      }
+      //nexLoop(nex_listen_list);
+      digitalWrite(pul_Pin, HIGH);
+      delayMicroseconds(speed);
+      digitalWrite(pul_Pin, LOW);
+      delayMicroseconds(speed);
+     }
+   }
+  }
+  dispensed = false;
+sendCommand("page 0");
+}
+void cal1600(){
+ //Serial.println("Dispensing cal1600");
+ if(stp_state){
+  digitalWrite(ena_Pin, HIGH);
+  delayMicroseconds(100);
+
+  digitalWrite(dir_Pin, LOW);
+  delayMicroseconds(100);
+
+  for (int i = 0; i < 1600; i++){
+   if(error_state || !stp_state){
+    sendCommand("page 0");
+       return;
+      }
+   //nexLoop(nex_listen_list);
+   digitalWrite(pul_Pin, HIGH);
+   delayMicroseconds(454);
+   digitalWrite(pul_Pin, LOW);
+   delayMicroseconds(454);
+  }
+
+  digitalWrite(dir_Pin, HIGH);
+  delayMicroseconds(sdelay);
+
+  for (int i = 0; i < 1600; i++){
+   if(error_state || !stp_state){
+    sendCommand("page 0");
+       return;
+      }
+    //nexLoop(nex_listen_list);
+   digitalWrite(pul_Pin, HIGH);
+   delayMicroseconds(454);
+   digitalWrite(pul_Pin, LOW);
+   delayMicroseconds(454);
+  }
+ }
+ dispensed = false;
+ sendCommand("page 1");
+}
+
+void min_Limit(){
+  if(millis()-last_interrupt > 5000){
+    minLimit_trigger = true;
+    if(!zero_block){
+     error_state = true;
+    }
+  }
+  last_interrupt = millis();
+   
+}
+void max_Limit(){
+  if(millis()-last_interrupt > 5000){
+    maxLimit_trigger = true;
+    if(!max_block){
+     error_state = true;
+    }
+   }
+  last_interrupt = millis();
+}
+void e_Stop(){
+  if(millis()-last_interrupt > 5000){
+    eStop_trigger = true;
+    error_state = true;
+   }
+  last_interrupt = millis();
+}
+void rstMCU(){
+ NVIC_SystemReset();
+}
+
+void safetyEna(){
+ attachInterrupt(digitalPinToInterrupt(min_Limit_sw_Pin), min_Limit, RISING);
+ attachInterrupt(digitalPinToInterrupt(max_Limit_sw_Pin), max_Limit, RISING);
+ attachInterrupt(digitalPinToInterrupt(estop_sw_Pin), e_Stop, RISING);
+ //Serial.println("interrupts enabled");
+}
+void safetyDis(){
+ detachInterrupt(digitalPinToInterrupt(min_Limit_sw_Pin));
+ detachInterrupt(digitalPinToInterrupt(max_Limit_sw_Pin));
+ detachInterrupt(digitalPinToInterrupt(estop_sw_Pin));
+ //Serial.println("interrupts disabled");
+}
 #ifdef nex_enable
 void attach_Callbacks(){
   pError.attachPop(perrorPopCallback, &pError);
