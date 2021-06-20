@@ -1,11 +1,11 @@
-/************************************************
- *
- * 
- * 
- * 
- * 
- *  
- ************************************************/
+//---------------------------------------------
+//
+// 
+// 
+// 
+// 
+//  
+//---------------------------------------------
 
 
 #include <Arduino.h>
@@ -25,6 +25,7 @@
 //#include <SoftwareSerial.h>
 #endif
 
+//
 const byte tx_Pin = 2;
 const byte rx_Pin = 3;
 const byte min_Limit_sw_Pin = 4;
@@ -36,11 +37,13 @@ const byte pul_Pin = 17; //A4
 const byte foot_sw_Pin = 6;
 const int chipSelect = SDCARD_SS_PIN;
 
+//
 static unsigned long last_interrupt = 0;
 static unsigned long last_trigger = 0;
 static char NEWLINE = '\n';
 static char COMMA = ',';
 
+//
 bool minLimit_trigger = false;
 bool maxLimit_trigger = false;
 bool eStop_trigger = false;
@@ -49,6 +52,10 @@ bool max_block = false;
 bool error_state = false;
 bool stp_state = false;
 bool fsw_state = false;
+
+struct params{
+
+};
 
 float volume = 250;
 int steps = 0;
@@ -202,7 +209,6 @@ size_t readField(File* file, char* str, size_t size, char* delim) {
   char ch;
   size_t n = 0;
   while ((n + 1) < size && file->read(&ch, 1) == 1) {
-    // Delete CR.
     if (ch == '\r') {
       continue;
     }
