@@ -1,11 +1,12 @@
-//---------------------------------------------
-//
+//-------------------------------------------------------------
+// Copyright (C) Joseffus Santos 2021 All Rights Reserved 
+// 
 // 
 // 
 // 
 // 
 //  
-//---------------------------------------------
+//-------------------------------------------------------------
 
 
 #include <Arduino.h>
@@ -54,7 +55,7 @@ bool stp_state = false;
 bool fsw_state = false;
 
 struct params{
-
+  
 };
 
 float volume = 250;
@@ -231,7 +232,7 @@ void SD_ReadSettings(){
     while (1);
   }
 
-// Rewind the file for read.
+  // Rewind the file for read.
   csvFile.seek(0);
 
  
