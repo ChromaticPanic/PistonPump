@@ -55,39 +55,62 @@ bool stp_state = false;
 bool fsw_state = false;
 
 struct params{
-  
-};
+  float volume;
+  int steps;
+  float speed;
+  float vol_per_1600steps;
+  float sdelay;
+  bool dispensed;
+  float vol_per_min;
+  float max_Vol;
+  float max_delay;
+  float max_rate;
+  float max_cal;
+  int jogAmt;
+  int mode; 
+  int pos;
+  float accel_pull;
+  float accel_push;
+  float speed_pull;
+  float speed_push;
+  float safe_speed;
+  float accel_time;
+  };
 
-float volume = 250;
-int steps = 0;
-float speed = 0;
-float vol_per_1600steps = 58.0800;
-float sdelay = 1000000;
-bool dispensed = false;
-float vol_per_min = 544.5;
-float max_Vol = 501.00;
-float max_delay = 10;
-float max_rate = 4800;
-float max_cal = 100;
-int jogAmt = 100;
-int mode = 1; //1,2,3
-int pos = 0;
-int errcode = 0;
+struct params value;
+
+//float volume = 250;
+//int steps = 0;
+//float speed = 0;
+//float vol_per_1600steps = 58.0800;
+//float sdelay = 1000000;
+//bool dispensed = false;
+//float vol_per_min = 544.5;
+//float max_Vol = 501.00;
+//float max_delay = 10;
+//float max_rate = 4800;
+//float max_cal = 100;
+//int jogAmt = 100;
+//int mode = 1; //1,2,3
+//int pos = 0;
+
 
 char buffer[100] = {0};
 
-void trigger_check();
-void set_Pins();
-void move_to_zero();
-void move_to_max();
-void dispense();
-void cal1600();
-void min_Limit();
-void max_Limit();
-void e_Stop();
-void rstMCU();
-void safetyEna();
-void safetyDis();
+void trigger_check(void);
+void set_Pins(void);
+void move_to_zero(void);
+void move_to_max(void);
+void dispense(void);
+void cal1600(void);
+void min_Limit(void);
+void max_Limit(void);
+void e_Stop(void);
+void rstMCU(void);
+void safetyEna(void);
+void safetyDis(void);
+void setDefaults(void);
+void step(int);
 
 #ifdef nex_enable
 void bVolPopCallback(void *ptr);
@@ -115,9 +138,9 @@ void bcMaxvolPopCallback(void *ptr);
 void rstScnPopCallback(void *ptr);
 void rstCtlPopCallback(void *ptr);
 void abortBtnPopCallback(void *ptr);
-void update_icons();
-void attach_Callbacks();
-void update_Values();
+void update_icons(void);
+void attach_Callbacks(void);
+void update_Values(void);
 
 NexPage page0    = NexPage(0, 0, "page0");
 NexPage page1    = NexPage(1, 0, "page1");
@@ -195,199 +218,16 @@ void SERCOM2_Handler()
 #endif
 
 #ifdef sd_enable
-bool SD_Begin(void){
-  //Serial.print("Initializing SD card...");
-  if (!SD.begin(chipSelect)) {
-    //Serial.println("Card failed, or not present");
-    return(0);
-  }
-  else {
-    //Serial.println("card initialized.");
-    return(1);
-  }
-}
-size_t readField(File* file, char* str, size_t size, char* delim) {
-  char ch;
-  size_t n = 0;
-  while ((n + 1) < size && file->read(&ch, 1) == 1) {
-    if (ch == '\r') {
-      continue;
-    }
-    str[n++] = ch;
-    if (strchr(delim, ch)) {
-        break;
-    }
-  }
-  str[n] = '\0';
-  return n;
-}
-void SD_ReadSettings(){
-  File csvFile;
-  char filename[15];
-  strcpy(filename, "settings.txt");
-  csvFile = SD.open(filename, FILE_READ);
-  if (!csvFile) {
-    //Serial.print("error opening ");
-    //Serial.println(filename);
-    while (1);
-  }
-
-  // Rewind the file for read.
-  csvFile.seek(0);
-
- 
-  size_t n;      // Length of returned field with delimiter.
-  char str[20];  // Must hold longest field with delimiter and zero byte.
-  char *ptr;     // Test for valid field.
-
-  // Read the file and store the data.
-    
-  n = readField(&csvFile, str, sizeof(str), &COMMA);
-  if (n == 0) {
-    //Serial.println("Too few lines");
-  }
-  volume = strtof(str, &ptr);
-  if (ptr == str) {
-    //Serial.println("bad number");
-  }
-  n = readField(&csvFile, str, sizeof(str), &NEWLINE);
-
-  n = readField(&csvFile, str, sizeof(str), &COMMA);
-  if (n == 0) {
-    //Serial.println("Too few lines");
-  }
-  vol_per_1600steps = strtof(str, &ptr);
-  if (ptr == str) {
-    //Serial.println("bad number");
-  }
-  n = readField(&csvFile, str, sizeof(str), &NEWLINE);
-
-  n = readField(&csvFile, str, sizeof(str), &COMMA);
-  if (n == 0) {
-    //Serial.println("Too few lines");
-  }
-  vol_per_min = strtof(str, &ptr);
-  if (ptr == str) {
-    //Serial.println("bad number");
-  }
-  n = readField(&csvFile, str, sizeof(str), &NEWLINE);
-
-  n = readField(&csvFile, str, sizeof(str), &COMMA);
-  if (n == 0) {
-    //Serial.println("Too few lines");
-  }
-  max_Vol = strtof(str, &ptr);
-  if (ptr == str) {
-    //Serial.println("bad number");
-  }
-  n = readField(&csvFile, str, sizeof(str), &NEWLINE);
-
-  n = readField(&csvFile, str, sizeof(str), &COMMA);
-  if (n == 0) {
-    //Serial.println("Too few lines");
-  }
-  sdelay = strtof(str, &ptr);
-  if (ptr == str) {
-    //Serial.println("bad number");
-  }
-  n = readField(&csvFile, str, sizeof(str), &NEWLINE);
-
-  n = readField(&csvFile, str, sizeof(str), &COMMA);
-  if (n == 0) {
-    //Serial.println("Too few lines");
-  }
-  max_delay = strtof(str, &ptr);
-  if (ptr == str) {
-    //Serial.println("bad number");
-  }
-  n = readField(&csvFile, str, sizeof(str), &NEWLINE);
-
-  n = readField(&csvFile, str, sizeof(str), &COMMA);
-  if (n == 0) {
-    //Serial.println("Too few lines");
-  }
-  max_rate = strtof(str, &ptr);
-  if (ptr == str) {
-    //Serial.println("bad number");
-  }
-  n = readField(&csvFile, str, sizeof(str), &NEWLINE);
-
-  n = readField(&csvFile, str, sizeof(str), &COMMA);
-  if (n == 0) {
-    //Serial.println("Too few lines");
-  }
-  max_cal = strtof(str, &ptr);
-  if (ptr == str) {
-    //Serial.println("bad number");
-  }
-  n = readField(&csvFile, str, sizeof(str), &NEWLINE);
- // Allow missing endl at eof.
- if (str[n-1] != NEWLINE && csvFile.available()) {
-   //Serial.println("missing endl");
- }
-
-  csvFile.close();
-  //Serial.print("Volume(mL)             :   ");
-  //Serial.println(volume);
-  //Serial.print("mL/1600 Steps          :   ");
-  //Serial.println(vol_per_1600steps);
-  //Serial.print("dispense rate (mL/min) :   ");
-  //Serial.println(vol_per_min);
-  //Serial.print("max volume (mL)        :   ");
-  //Serial.println(max_Vol);
-  //Serial.print("delay (s)              :   ");
-  //Serial.println(sdelay);
-}
-void SD_WriteSettings(){
-  //Serial.println("Saving Settings");
-  File csvFile;
-  char filename[15];
-  strcpy(filename, "settings.txt");
-  //SD.remove(filename);
-  csvFile = SD.open(filename, O_WRITE | O_TRUNC);
-  if (!csvFile) {
-    //Serial.print("error opening ");
-    //Serial.println(filename);
-    while (1);
-  }
-
-// Rewind the file for write.
-  csvFile.seek(0);
-  csvFile.print(volume);
-  csvFile.println(",volume");
-  csvFile.print(vol_per_1600steps);
-  csvFile.println(",vol_per_1600");
-  csvFile.print(vol_per_min);
-  csvFile.println(",vol_per_min");
-  csvFile.print(max_Vol);
-  csvFile.println(",max_Vol");
-  csvFile.print(sdelay);
-  csvFile.println(",delay_s");
-  
-  csvFile.print(max_delay);
-  csvFile.println(",max_delay");
-  csvFile.print(max_rate);
-  csvFile.println(",max_rate");
-  csvFile.print(max_cal);
-  csvFile.println(",max_cal");
-  
-  csvFile.println("0,logfile");
-  csvFile.close();
-  //Serial.println("Settings Saved");
-  //Serial.print("Volume(mL)             :   ");
-  //Serial.println(volume);
-  //Serial.print("mL/1600 Steps          :   ");
-  //Serial.println(vol_per_1600steps);
-  //Serial.print("dispense rate (mL/min) :   ");
-  //Serial.println(vol_per_min);
-  //Serial.print("max volume (mL)        :   ");
-  //Serial.println(max_Vol);
-  //Serial.print("delay (s)              :   ");
-  //Serial.println(sdelay);
-}
+bool SD_Begin(void);
+size_t readField(File *, char *, size_t , char *);
+void SD_ReadSettings(void);
+float getValue(File *);
+void SD_WriteSettings(void);
 #endif
 
-void setup() {
+
+
+void setup(void) {
 
   Serial.begin(9600);
   for(int i=5 ; i>0 ; i--){
@@ -397,6 +237,8 @@ void setup() {
   set_Pins();
   delayMicroseconds(1000000);
   
+  setDefaults();
+
   #ifdef sd_enable
   SD_Begin();
   delayMicroseconds(1000000);
@@ -418,7 +260,7 @@ void setup() {
   
 }
 
-void loop() {
+void loop(void) {
   
   #ifdef nex_enable
     nexLoop(nex_listen_list);
@@ -428,7 +270,29 @@ void loop() {
 
 }
 
-void set_Pins(){
+void setDefaults(){
+  value.volume = 250;
+  value.steps = 0;
+  value.speed = 0;
+  value.vol_per_1600steps = 58.0800;
+  value.sdelay = 1000000;
+  value.dispensed = false;
+  value.vol_per_min = 544.5;
+  value.max_Vol = 501.00;
+  value.max_delay = 10;
+  value.max_rate = 4800;
+  value.max_cal = 100;
+  value.jogAmt = 100;
+  value.mode = 1; //1,2,3
+  value.pos = 0;
+  value.accel_pull = 1;
+  value.accel_push = 1;
+  value.speed_pull = 454;
+  value.speed_push = 454;
+  value.safe_speed = 454;
+  value.accel_time = 1000;
+}
+void set_Pins(void){
   pinMode(min_Limit_sw_Pin, INPUT);
   pinMode(max_Limit_sw_Pin, INPUT);
   pinMode(estop_sw_Pin, INPUT);
@@ -439,42 +303,42 @@ void set_Pins(){
   //pinMode(LED_BUILTIN, OUTPUT);
   //Serial.println("pinmode setup complete");
 }
-void update_Values(){
+void update_Values(void){
   memset(buffer, 0, sizeof(buffer));
-  snprintf(buffer, sizeof(buffer), "%.2f", volume);
+  snprintf(buffer, sizeof(buffer), "%.2f", value.volume);
   vol0.setText(buffer);
 
   memset(buffer, 0, sizeof(buffer));
-  snprintf(buffer, sizeof(buffer), "%.4f", vol_per_1600steps);
+  snprintf(buffer, sizeof(buffer), "%.4f", value.vol_per_1600steps);
   ml160.setText(buffer);
 
   memset(buffer, 0, sizeof(buffer));
-  snprintf(buffer, sizeof(buffer), "%.2f", vol_per_min);
+  snprintf(buffer, sizeof(buffer), "%.2f", value.vol_per_min);
   mlmin0.setText(buffer);
 
   memset(buffer, 0, sizeof(buffer));
-  snprintf(buffer, sizeof(buffer), "%.2f", max_Vol);
+  snprintf(buffer, sizeof(buffer), "%.2f", value.max_Vol);
   maxvol0.setText(buffer);
 
   memset(buffer, 0, sizeof(buffer));
-  snprintf(buffer, sizeof(buffer), "%.6f", (sdelay/1000000));
+  snprintf(buffer, sizeof(buffer), "%.6f", (value.sdelay/1000000));
   sdelay0.setText(buffer);
 
   memset(buffer, 0, sizeof(buffer));
-  snprintf(buffer, sizeof(buffer), "%.6f", max_delay);
+  snprintf(buffer, sizeof(buffer), "%.6f", value.max_delay);
   maxdelay0.setText(buffer);
 
   memset(buffer, 0, sizeof(buffer));
-  snprintf(buffer, sizeof(buffer), "%.2f", max_rate);
+  snprintf(buffer, sizeof(buffer), "%.2f", value.max_rate);
   maxrate0.setText(buffer);
 
   memset(buffer, 0, sizeof(buffer));
-  snprintf(buffer, sizeof(buffer), "%.4f", max_cal);
+  snprintf(buffer, sizeof(buffer), "%.4f", value.max_cal);
   maxcal0.setText(buffer);
 
   sendCommand("page 0");
 }
-void trigger_check(){
+void trigger_check(void){
  if(minLimit_trigger && !zero_block){
   //Serial.println("min limit triggered");
    digitalWrite(ena_Pin, LOW);
@@ -517,16 +381,23 @@ void trigger_check(){
   
  if(fsw_state && !digitalRead(foot_sw_Pin)){
   if(millis()-last_trigger > 4000){
-  last_trigger = millis();
-   //Serial.println("foot switch triggered");
-   if(!error_state || !dispensed){
-   dispensed = true;
-   dispense();
-   }
+    last_trigger = millis();
+    //Serial.println("foot switch triggered");
+    if(!error_state || !value.dispensed){
+    value.dispensed = true;
+    dispense();
+    }
   }
  }
 }
-void move_to_zero(){ //454
+void step(int delay){
+  digitalWrite(pul_Pin, HIGH);
+  delayMicroseconds(delay);
+  digitalWrite(pul_Pin, LOW);
+  delayMicroseconds(delay);
+}
+
+void move_to_zero(void){ //454
  //Serial.println("Moving to zero");
   zero_block = true;
   if(stp_state){
@@ -543,10 +414,7 @@ void move_to_zero(){ //454
      return;
     }
     //nexLoop(nex_listen_list);
-    digitalWrite(pul_Pin, HIGH);
-    delayMicroseconds(454);
-    digitalWrite(pul_Pin, LOW);
-    delayMicroseconds(454);
+    step(value.safe_speed);
    }
 
   digitalWrite(dir_Pin, LOW);
@@ -559,19 +427,16 @@ void move_to_zero(){ //454
     return;
    }
    //nexLoop(nex_listen_list);
-   digitalWrite(pul_Pin, HIGH);
-   delayMicroseconds(454);
-   digitalWrite(pul_Pin, LOW);
-   delayMicroseconds(454);
+   step(value.safe_speed);
   }
-  pos = 0;
+  value.pos = 0;
   }
  minLimit_trigger = false; 
  zero_block = false;
- dispensed = false;
+ value.dispensed = false;
  sendCommand("page 0");
 }
-void move_to_max(){
+void move_to_max(void){
  //Serial.println("Moving to zero");
   max_block = true;
   if(stp_state){
@@ -588,11 +453,8 @@ void move_to_max(){
      return;
     }
     //nexLoop(nex_listen_list);
-    digitalWrite(pul_Pin, HIGH);
-    delayMicroseconds(454);
-    digitalWrite(pul_Pin, LOW);
-    delayMicroseconds(454);
-    pos++;
+    step(value.safe_speed);
+    value.pos++;
    }
 
   digitalWrite(dir_Pin, HIGH);
@@ -605,26 +467,23 @@ void move_to_max(){
     return;
    }
    //nexLoop(nex_listen_list);
-   digitalWrite(pul_Pin, HIGH);
-   delayMicroseconds(454);
-   digitalWrite(pul_Pin, LOW);
-   delayMicroseconds(454);
-   pos--;
+   step(value.safe_speed);
+   value.pos--;
   }
   //pos = 0;
   }
  maxLimit_trigger = false; 
  max_block = false;
- dispensed = false;
- max_Vol = vol_per_1600steps / 1600 * pos;
+ value.dispensed = false;
+ value.max_Vol = value.vol_per_1600steps / 1600 * value.pos;
  memset(buffer, 0, sizeof(buffer));
- snprintf(buffer, sizeof(buffer), "%.2f", max_Vol);
+ snprintf(buffer, sizeof(buffer), "%.2f", value.max_Vol);
  maxvol0.setText(buffer);
  delayMicroseconds(200000);
  move_to_zero();
  sendCommand("page 3");
 }
-void dispense(){
+/*void dispense(void){
  //Serial.println("Dispensing");
   //Serial.print("Volume(mL)   :   ");
   //Serial.println(volume);
@@ -638,51 +497,100 @@ void dispense(){
    
    // microseconds/step = mL/step * min/mL * 60000000 microseconds/min
 
-   speed = (( (vol_per_1600steps / 1600) / vol_per_min) * 30000000);
+   value.speed = (( (value.vol_per_1600steps / 1600) / value.vol_per_min) * 30000000);
    //Serial.print("Speed : "); 
    //Serial.println(speed); 
-   if (volume > max_Vol){
+   if (value.volume > value.max_Vol){
 
-   } else if (volume > 0) {
+   } else if (value.volume > 0) {
     
     digitalWrite(dir_Pin, LOW);
     delayMicroseconds(100);
 
-    steps = volume / (vol_per_1600steps/1600);
+    value.steps = value.volume / (value.vol_per_1600steps/1600);
 
-     for (int i = 0; i < steps; i++){
+     for (int i = 0; i < value.steps; i++){
       if(error_state || !stp_state){
        sendCommand("page 0");
        return;
       }
       //nexLoop(nex_listen_list);
-      digitalWrite(pul_Pin, HIGH);
-      delayMicroseconds(speed);
-      digitalWrite(pul_Pin, LOW);
-      delayMicroseconds(speed);
+      step(value.speed);
      }
 
      digitalWrite(dir_Pin, HIGH);
-     delayMicroseconds(sdelay);
+     delayMicroseconds(value.sdelay);
      //Serial.println(sdelay);
 
-     for (int i = 0; i < steps; i++){
+     for (int i = 0; i < value.steps; i++){
       if(error_state || !stp_state){
        sendCommand("page 0");
        return;
       }
       //nexLoop(nex_listen_list);
-      digitalWrite(pul_Pin, HIGH);
-      delayMicroseconds(speed);
-      digitalWrite(pul_Pin, LOW);
-      delayMicroseconds(speed);
+      step(value.speed);
      }
    }
   }
-  dispensed = false;
+  value.dispensed = false;
+sendCommand("page 0");
+}*/
+void dispense(void){
+  unsigned long last_incr = 0;
+  float currSpeed = value.safe_speed;
+  if(stp_state){
+   digitalWrite(ena_Pin, HIGH);
+   delayMicroseconds(100);
+   
+   // microseconds/step = mL/step * min/mL * 60000000 microseconds/min
+
+   value.speed = (( (value.vol_per_1600steps / 1600) / value.vol_per_min) * 30000000);
+   //Serial.print("Speed : "); 
+   //Serial.println(speed); 
+   if (value.volume > value.max_Vol){
+
+   } else if (value.volume > 0) {
+    
+    digitalWrite(dir_Pin, LOW);
+    delayMicroseconds(100);
+
+    value.steps = value.volume / (value.vol_per_1600steps/1600);
+
+     for (int i = 0; i < value.steps; i++){
+      if(error_state || !stp_state){
+       sendCommand("page 0");
+       return;
+      }
+      //nexLoop(nex_listen_list);
+      if((millis() - last_incr > value.accel_time) && currSpeed > value.speed_pull){
+        currSpeed = currSpeed - value.accel_pull;
+        last_incr = millis();
+      }
+      step(currSpeed);
+     }
+
+     digitalWrite(dir_Pin, HIGH);
+     delayMicroseconds(value.sdelay);
+     //Serial.println(sdelay);
+
+     for (int i = 0; i < value.steps; i++){
+      if(error_state || !stp_state){
+       sendCommand("page 0");
+       return;
+      }
+      //nexLoop(nex_listen_list);
+      if((millis() - last_incr > value.accel_time) && currSpeed > value.speed_push){
+        currSpeed = currSpeed - value.accel_push;
+        last_incr = millis();
+      }
+      step(value.speed);
+     }
+   }
+  }
+  value.dispensed = false;
 sendCommand("page 0");
 }
-void cal1600(){
+void cal1600(void){
  //Serial.println("Dispensing cal1600");
  if(stp_state){
   digitalWrite(ena_Pin, HIGH);
@@ -697,14 +605,11 @@ void cal1600(){
        return;
       }
    //nexLoop(nex_listen_list);
-   digitalWrite(pul_Pin, HIGH);
-   delayMicroseconds(454);
-   digitalWrite(pul_Pin, LOW);
-   delayMicroseconds(454);
+   step(value.safe_speed);
   }
 
   digitalWrite(dir_Pin, HIGH);
-  delayMicroseconds(sdelay);
+  delayMicroseconds(value.sdelay);
 
   for (int i = 0; i < 1600; i++){
    if(error_state || !stp_state){
@@ -712,16 +617,13 @@ void cal1600(){
        return;
       }
     //nexLoop(nex_listen_list);
-   digitalWrite(pul_Pin, HIGH);
-   delayMicroseconds(454);
-   digitalWrite(pul_Pin, LOW);
-   delayMicroseconds(454);
+   step(value.safe_speed);
   }
  }
- dispensed = false;
+ value.dispensed = false;
  sendCommand("page 1");
 }
-void min_Limit(){
+void min_Limit(void){
   if(millis()-last_interrupt > 5000){
     minLimit_trigger = true;
     if(!zero_block){
@@ -731,7 +633,7 @@ void min_Limit(){
   last_interrupt = millis();
    
 }
-void max_Limit(){
+void max_Limit(void){
   if(millis()-last_interrupt > 5000){
     maxLimit_trigger = true;
     if(!max_block){
@@ -740,31 +642,163 @@ void max_Limit(){
    }
   last_interrupt = millis();
 }
-void e_Stop(){
+void e_Stop(void){
   if(millis()-last_interrupt > 5000){
     eStop_trigger = true;
     error_state = true;
    }
   last_interrupt = millis();
 }
-void rstMCU(){
+void rstMCU(void){
  NVIC_SystemReset();
 }
-void safetyEna(){
+void safetyEna(void){
  attachInterrupt(digitalPinToInterrupt(min_Limit_sw_Pin), min_Limit, RISING);
  attachInterrupt(digitalPinToInterrupt(max_Limit_sw_Pin), max_Limit, RISING);
  attachInterrupt(digitalPinToInterrupt(estop_sw_Pin), e_Stop, RISING);
  //Serial.println("interrupts enabled");
 }
-void safetyDis(){
+void safetyDis(void){
  detachInterrupt(digitalPinToInterrupt(min_Limit_sw_Pin));
  detachInterrupt(digitalPinToInterrupt(max_Limit_sw_Pin));
  detachInterrupt(digitalPinToInterrupt(estop_sw_Pin));
  //Serial.println("interrupts disabled");
 }
 
+#ifdef sd_enable
+bool SD_Begin(void){
+  //Serial.print("Initializing SD card...");
+  if (!SD.begin(chipSelect)) {
+    //Serial.println("Card failed, or not present");
+    return(0);
+  }
+  else {
+    //Serial.println("card initialized.");
+    return(1);
+  }
+}
+size_t readField(File *file, char *str, size_t size, char *delim) {
+  char ch;
+  size_t n = 0;
+  while ((n + 1) < size && file->read(&ch, 1) == 1) {
+    if (ch == '\r') {
+      continue;
+    }
+    str[n++] = ch;
+    if (strchr(delim, ch)) {
+        break;
+    }
+  }
+  str[n] = '\0';
+  return n;
+}
+void SD_ReadSettings(void){
+  File csvFile;
+  struct params temp;
+  char filename[15];
+  strcpy(filename, "settings.txt");
+  csvFile = SD.open(filename, FILE_READ);
+  if (!csvFile) {
+    //Serial.print("error opening ");
+    //Serial.println(filename);
+    while (1);
+  }
+
+  // Rewind the file for read.
+  csvFile.seek(0);
+
+  // Read the file and store the data.
+  temp.volume = getValue(&csvFile);
+  temp.vol_per_1600steps = getValue(&csvFile);
+  temp.vol_per_min = getValue(&csvFile);
+  temp.max_Vol = getValue(&csvFile);
+  temp.sdelay = getValue(&csvFile);
+  temp.max_delay = getValue(&csvFile);
+  temp.max_rate = getValue(&csvFile);
+  temp.max_cal = getValue(&csvFile);
+
+  //TODO validate min max
+  
+  csvFile.close();
+  //Serial.print("Volume(mL)             :   ");
+  //Serial.println(volume);
+  //Serial.print("mL/1600 Steps          :   ");
+  //Serial.println(vol_per_1600steps);
+  //Serial.print("dispense rate (mL/min) :   ");
+  //Serial.println(vol_per_min);
+  //Serial.print("max volume (mL)        :   ");
+  //Serial.println(max_Vol);
+  //Serial.print("delay (s)              :   ");
+  //Serial.println(sdelay);
+}
+float getValue(File *csvFile){
+  float result = 0.0;
+  //size_t n;      // Length of returned field with delimiter.
+  char str[100];  // Must hold longest field with delimiter and zero byte.
+  char *ptr;     // Test for valid field.
+
+  if (readField(csvFile, str, sizeof(str), &COMMA) > 0) {
+    if (str > 0) {
+      result = strtof(str, &ptr);
+    }//Serial.println("bad number");
+    
+  }//Serial.println("Too few lines");
+
+  readField(csvFile, str, sizeof(str), &NEWLINE);
+
+  return result;
+}
+void SD_WriteSettings(void){
+  //Serial.println("Saving Settings");
+  File csvFile;
+  char filename[15];
+  strcpy(filename, "settings.txt");
+  //SD.remove(filename);
+  csvFile = SD.open(filename, O_WRITE | O_TRUNC);
+  if (!csvFile) {
+    //Serial.print("error opening ");
+    //Serial.println(filename);
+    while (1);
+  }
+
+// Rewind the file for write.
+  csvFile.seek(0);
+  csvFile.print(value.volume);
+  csvFile.println(",volume");
+  csvFile.print(value.vol_per_1600steps);
+  csvFile.println(",vol_per_1600");
+  csvFile.print(value.vol_per_min);
+  csvFile.println(",vol_per_min");
+  csvFile.print(value.max_Vol);
+  csvFile.println(",max_Vol");
+  csvFile.print(value.sdelay);
+  csvFile.println(",delay_s");
+  
+  csvFile.print(value.max_delay);
+  csvFile.println(",max_delay");
+  csvFile.print(value.max_rate);
+  csvFile.println(",max_rate");
+  csvFile.print(value.max_cal);
+  csvFile.println(",max_cal");
+  
+  csvFile.println("0,logfile");
+  csvFile.close();
+  //Serial.println("Settings Saved");
+  //Serial.print("Volume(mL)             :   ");
+  //Serial.println(volume);
+  //Serial.print("mL/1600 Steps          :   ");
+  //Serial.println(vol_per_1600steps);
+  //Serial.print("dispense rate (mL/min) :   ");
+  //Serial.println(vol_per_min);
+  //Serial.print("max volume (mL)        :   ");
+  //Serial.println(max_Vol);
+  //Serial.print("delay (s)              :   ");
+  //Serial.println(sdelay);
+}
+#endif
+
 #ifdef nex_enable
-void attach_Callbacks(){
+void attach_Callbacks(void){
   pError.attachPop(perrorPopCallback, &pError);
   bVol.attachPop(bVolPopCallback, &bVol);
   bDisp.attachPop(bDispPopCallback, &bDisp);
@@ -793,19 +827,19 @@ void attach_Callbacks(){
 }
 void bVolPopCallback(void *ptr){ 
  //Serial.println("Mode 1");
- mode = 1;
+ value.mode = 1;
 }
 void mlstepBoxPopCallback(void *ptr){ 
  //Serial.println("Mode 2");
- mode = 2;
+ value.mode = 2;
 }
 void mlminBoxPopCallback(void *ptr){ 
  //Serial.println("Mode 3");
- mode = 3;
+ value.mode = 3;
 }
 void sdelayBoxPopCallback(void *ptr){ 
  //Serial.println("Mode 4");
- mode = 4;
+ value.mode = 4;
 }
 void perrorPopCallback(void *ptr){ 
  //Serial.println("Reset error states");
@@ -813,7 +847,7 @@ void perrorPopCallback(void *ptr){
  minLimit_trigger = false;
  maxLimit_trigger = false;
  eStop_trigger = false;
- dispensed = false;
+ value.dispensed = false;
 }
 void bZeroPopCallback(void *ptr){ 
  move_to_zero();
@@ -822,17 +856,17 @@ void bDispPopCallback(void *ptr){
  dispense();
 }
 void bt1PopCallback(void *ptr){ 
- jogAmt = 400;
+ value.jogAmt = 400;
  //Serial.print("Jog set to ");
  //Serial.println(jogAmt);
 }
 void bt5PopCallback(void *ptr){ 
- jogAmt = 2000;
+ value.jogAmt = 2000;
  //Serial.print("Jog set to ");
  //Serial.println(jogAmt);
 }
 void bt10PopCallback(void *ptr){ 
- jogAmt = 4000;
+ value.jogAmt = 4000;
  //Serial.print("Jog set to ");
  //Serial.println(jogAmt);
 }
@@ -842,14 +876,11 @@ void btUPPopCallback(void *ptr){
 
   digitalWrite(dir_Pin, HIGH);
   delayMicroseconds(100);
-  for (int i = 0; i < jogAmt; i++){
+  for (int i = 0; i < value.jogAmt; i++){
    if(error_state || !stp_state){
        return;
       }
-   digitalWrite(pul_Pin, HIGH);
-   delayMicroseconds(1000);
-   digitalWrite(pul_Pin, LOW);
-   delayMicroseconds(1000);
+   step(value.safe_speed * 2);
   }
 }
 void btDNPopCallback(void *ptr){
@@ -858,32 +889,29 @@ void btDNPopCallback(void *ptr){
 
   digitalWrite(dir_Pin, LOW);
   delayMicroseconds(100);
-  for (int i = 0; i < jogAmt; i++){
+  for (int i = 0; i < value.jogAmt; i++){
    if(error_state || !stp_state){
        return;
       }
-   digitalWrite(pul_Pin, HIGH);
-   delayMicroseconds(1000);
-   digitalWrite(pul_Pin, LOW);
-   delayMicroseconds(1000);
+   step(value.safe_speed * 2);
   }
 }
 void bv11PopCallback(void *ptr){
   // 
   delayMicroseconds(100);
-  switch(mode) {
+  switch(value.mode) {
   case 1:
     memset(buffer, 0, sizeof(buffer));
     vol0.getText(buffer,sizeof(buffer));
 
-    if(atof(buffer)<max_Vol){
-     volume = atof(buffer);
+    if(atof(buffer)<value.max_Vol){
+     value.volume = atof(buffer);
      //Serial.print("volume set to ");
      //Serial.println(volume);
     } else {
      //handle error
      memset(buffer, 0, sizeof(buffer));
-     snprintf(buffer, sizeof(buffer), "%.2f", volume);
+     snprintf(buffer, sizeof(buffer), "%.2f", value.volume);
      vol0.setText(buffer);
      errcode0.setValue(5);
      sendCommand("page 7");
@@ -893,14 +921,14 @@ void bv11PopCallback(void *ptr){
   case 2:
     memset(buffer, 0, sizeof(buffer));
     ml160.getText(buffer,sizeof(buffer));
-    if(atof(buffer)<max_cal){
-     vol_per_1600steps = atof(buffer);
+    if(atof(buffer)<value.max_cal){
+     value.vol_per_1600steps = atof(buffer);
      //Serial.print("volume per 1600 steps set to ");
      //Serial.println(vol_per_1600steps);
     } else {
      //handle error
      memset(buffer, 0, sizeof(buffer));
-     snprintf(buffer, sizeof(buffer), "%.4f", vol_per_1600steps);
+     snprintf(buffer, sizeof(buffer), "%.4f", value.vol_per_1600steps);
      ml160.setText(buffer);
      errcode0.setValue(6);
      sendCommand("page 7");
@@ -910,14 +938,14 @@ void bv11PopCallback(void *ptr){
   case 3:
     memset(buffer, 0, sizeof(buffer));
     mlmin0.getText(buffer,sizeof(buffer));
-    if(atof(buffer)<max_rate){
-     vol_per_min = atof(buffer);
+    if(atof(buffer)<value.max_rate){
+     value.vol_per_min = atof(buffer);
      //Serial.print("volume per min set to ");
      //Serial.println(vol_per_min);
     } else {
      //handle error
      memset(buffer, 0, sizeof(buffer));
-     snprintf(buffer, sizeof(buffer), "%.2f", vol_per_min);
+     snprintf(buffer, sizeof(buffer), "%.2f", value.vol_per_min);
      mlmin0.setText(buffer);
      errcode0.setValue(7);
      sendCommand("page 7");
@@ -927,14 +955,14 @@ void bv11PopCallback(void *ptr){
   case 4:
     memset(buffer, 0, sizeof(buffer));
     sdelay0.getText(buffer,sizeof(buffer));
-    if(atof(buffer)<max_delay){
-     sdelay = atof(buffer) * 1000000;
+    if(atof(buffer)<value.max_delay){
+     value.sdelay = atof(buffer) * 1000000;
      //Serial.print("delay (s) set to ");
      //Serial.println(sdelay);
     } else {
      //handle error
      memset(buffer, 0, sizeof(buffer));
-     snprintf(buffer, sizeof(buffer), "%.6f", (sdelay/1000000));
+     snprintf(buffer, sizeof(buffer), "%.6f", (value.sdelay/1000000));
      sdelay0.setText(buffer);
      errcode0.setValue(4);
      sendCommand("page 7");
@@ -988,13 +1016,13 @@ void rstScnPopCallback(void *ptr){
  nexInit();
  delayMicroseconds(5000000);
  memset(buffer, 0, sizeof(buffer));
- snprintf(buffer, sizeof(buffer), "%.2f", volume);
+ snprintf(buffer, sizeof(buffer), "%.2f", value.volume);
  vol0.setText(buffer);
  memset(buffer, 0, sizeof(buffer));
- snprintf(buffer, sizeof(buffer), "%.4f", vol_per_1600steps);
+ snprintf(buffer, sizeof(buffer), "%.4f", value.vol_per_1600steps);
  ml160.setText(buffer);
  memset(buffer, 0, sizeof(buffer));
- snprintf(buffer, sizeof(buffer), "%.2f", vol_per_min);
+ snprintf(buffer, sizeof(buffer), "%.2f", value.vol_per_min);
  mlmin0.setText(buffer);
  sendCommand("page 0");
 }
@@ -1008,7 +1036,7 @@ void abortBtnPopCallback(void *ptr){
  delayMicroseconds(500000);
  sendCommand("page 0");
 }
-void update_icons(){
+void update_icons(void){
  
  sendCommand("ref 0");
 }
