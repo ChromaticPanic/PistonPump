@@ -56,28 +56,29 @@ bool fsw_state = false;
 
 struct params{
   float volume;
-  int steps;
-  float speed;
-  float vol_per_1600steps;
+  double vol_per_1600steps;
+  double vol_per_min;
   float sdelay;
-  bool dispensed;
-  float vol_per_min;
-  float max_Vol;
-  float max_delay;
-  float max_rate;
-  float max_cal;
-  int jogAmt;
-  int mode; 
-  int pos;
+  float safe_speed;
+
   float accel_pull;
   float accel_push;
   float speed_pull;
   float speed_push;
-  float safe_speed;
   float accel_time;
+
+  int steps;
+  float speed;
+  bool dispensed;
+  int jogAmt;
+  int mode; 
+  int pos;
+
   };
 
 struct params value;
+struct params minAllowed;
+struct params maxAllowed;
 
 //float volume = 250;
 //int steps = 0;
@@ -111,6 +112,7 @@ void safetyEna(void);
 void safetyDis(void);
 void setDefaults(void);
 void step(int);
+void printSettings(void);
 
 #ifdef nex_enable
 void bVolPopCallback(void *ptr);
@@ -238,6 +240,8 @@ void setup(void) {
   delayMicroseconds(1000000);
   
   setDefaults();
+  Serial.println("Default Settings:");
+  printSettings();
 
   #ifdef sd_enable
   SD_Begin();
@@ -247,6 +251,8 @@ void setup(void) {
     delayMicroseconds(1000000);
   }
   SD_ReadSettings();
+  Serial.println("Loaded Settings:");
+  printSettings();
   #endif
 
   #ifdef nex_enable
@@ -271,26 +277,61 @@ void loop(void) {
 }
 
 void setDefaults(){
-  value.volume = 250;
-  value.steps = 0;
-  value.speed = 0;
+  value.volume            = 250.0;
   value.vol_per_1600steps = 58.0800;
-  value.sdelay = 1000000;
-  value.dispensed = false;
-  value.vol_per_min = 544.5;
-  value.max_Vol = 501.00;
-  value.max_delay = 10;
-  value.max_rate = 4800;
-  value.max_cal = 100;
-  value.jogAmt = 100;
-  value.mode = 1; //1,2,3
-  value.pos = 0;
-  value.accel_pull = 1;
-  value.accel_push = 1;
-  value.speed_pull = 454;
-  value.speed_push = 454;
-  value.safe_speed = 454;
-  value.accel_time = 1000;
+  value.vol_per_min       = 544.5;
+  value.sdelay            = 1000000.0;
+  value.safe_speed        = 454.0;
+
+  value.accel_pull        = 1.0;
+  value.accel_push        = 1.0;
+  value.speed_pull        = 454.0;
+  value.speed_push        = 454.0;
+  value.accel_time        = 1000.0;
+
+  value.steps             = 0;
+  value.speed             = 2000;
+  value.dispensed         = false;
+  value.jogAmt            = 100;
+  value.mode              = 1; 
+  value.pos               = 0;
+
+  minAllowed.volume            = 0.0;
+  minAllowed.vol_per_1600steps = 0.0;
+  minAllowed.vol_per_min       = 0.0;
+  minAllowed.sdelay            = 0.0;
+  minAllowed.safe_speed        = 300.0;
+
+  minAllowed.accel_pull        = 1.0;
+  minAllowed.accel_push        = 1.0;
+  minAllowed.speed_pull        = 0.0;
+  minAllowed.speed_push        = 0.0;
+  minAllowed.accel_time        = 200.0;
+
+  minAllowed.steps             = 0;
+  minAllowed.speed             = 0;
+  minAllowed.jogAmt            = 100;
+  minAllowed.mode              = 1; 
+  minAllowed.pos               = 0;
+
+  maxAllowed.volume            = 600.0;
+  maxAllowed.vol_per_1600steps = 100.0;
+  maxAllowed.vol_per_min       = 4800.0;
+  maxAllowed.sdelay            = 10.0;
+  maxAllowed.safe_speed        = 2000.0;
+
+  maxAllowed.accel_pull        = 1.0;
+  maxAllowed.accel_push        = 1.0;
+  maxAllowed.speed_pull        = 454.0;
+  maxAllowed.speed_push        = 454.0;
+  maxAllowed.accel_time        = 1000.0;
+
+  maxAllowed.steps             = 0;
+  maxAllowed.speed             = 0;
+  maxAllowed.jogAmt            = 100;
+  maxAllowed.mode              = 4; 
+  maxAllowed.pos               = 0;
+  
 }
 void set_Pins(void){
   pinMode(min_Limit_sw_Pin, INPUT);
@@ -317,7 +358,7 @@ void update_Values(void){
   mlmin0.setText(buffer);
 
   memset(buffer, 0, sizeof(buffer));
-  snprintf(buffer, sizeof(buffer), "%.2f", value.max_Vol);
+  snprintf(buffer, sizeof(buffer), "%.2f", maxAllowed.volume);
   maxvol0.setText(buffer);
 
   memset(buffer, 0, sizeof(buffer));
@@ -325,15 +366,15 @@ void update_Values(void){
   sdelay0.setText(buffer);
 
   memset(buffer, 0, sizeof(buffer));
-  snprintf(buffer, sizeof(buffer), "%.6f", value.max_delay);
+  snprintf(buffer, sizeof(buffer), "%.6f", maxAllowed.sdelay);
   maxdelay0.setText(buffer);
 
   memset(buffer, 0, sizeof(buffer));
-  snprintf(buffer, sizeof(buffer), "%.2f", value.max_rate);
+  snprintf(buffer, sizeof(buffer), "%.2f", maxAllowed.vol_per_min);
   maxrate0.setText(buffer);
 
   memset(buffer, 0, sizeof(buffer));
-  snprintf(buffer, sizeof(buffer), "%.4f", value.max_cal);
+  snprintf(buffer, sizeof(buffer), "%.4f", maxAllowed.vol_per_1600steps);
   maxcal0.setText(buffer);
 
   sendCommand("page 0");
@@ -475,9 +516,9 @@ void move_to_max(void){
  maxLimit_trigger = false; 
  max_block = false;
  value.dispensed = false;
- value.max_Vol = value.vol_per_1600steps / 1600 * value.pos;
+ maxAllowed.volume = value.vol_per_1600steps / 1600 * value.pos;
  memset(buffer, 0, sizeof(buffer));
- snprintf(buffer, sizeof(buffer), "%.2f", value.max_Vol);
+ snprintf(buffer, sizeof(buffer), "%.2f", maxAllowed.volume);
  maxvol0.setText(buffer);
  delayMicroseconds(200000);
  move_to_zero();
@@ -547,7 +588,7 @@ void dispense(void){
    value.speed = (( (value.vol_per_1600steps / 1600) / value.vol_per_min) * 30000000);
    //Serial.print("Speed : "); 
    //Serial.println(speed); 
-   if (value.volume > value.max_Vol){
+   if (value.volume > maxAllowed.volume){
 
    } else if (value.volume > 0) {
     
@@ -664,6 +705,36 @@ void safetyDis(void){
  detachInterrupt(digitalPinToInterrupt(estop_sw_Pin));
  //Serial.println("interrupts disabled");
 }
+void printSettings(void){
+  Serial.print(value.volume);
+  Serial.println(",volume");
+  Serial.print(value.vol_per_1600steps);
+  Serial.println(",vol_per_1600");
+  Serial.print(value.vol_per_min);
+  Serial.println(",vol_per_min");
+  Serial.print(maxAllowed.volume);
+  Serial.println(",max_Vol");
+  Serial.print(value.sdelay);
+  Serial.println(",delay_s");
+  
+  Serial.print(maxAllowed.sdelay);
+  Serial.println(",max_delay");
+  Serial.print(maxAllowed.vol_per_min);
+  Serial.println(",max_rate");
+  Serial.print(maxAllowed.vol_per_1600steps);
+  Serial.println(",max_cal");
+  
+  Serial.print(value.accel_pull);
+  Serial.println(",accel_pull");
+  Serial.print(value.accel_push);
+  Serial.println(",accel_push");
+  Serial.print(value.speed_pull);
+  Serial.println(",speed_pull");
+  Serial.print(value.speed_push);
+  Serial.println(",speed_push");
+  Serial.print(value.accel_time);
+  Serial.println(",accel_time");
+}
 
 #ifdef sd_enable
 bool SD_Begin(void){
@@ -693,9 +764,25 @@ size_t readField(File *file, char *str, size_t size, char *delim) {
   return n;
 }
 void SD_ReadSettings(void){
+  
+  float volume;
+  double vol_per_1600steps;
+  double vol_per_min;
+  float sdelay;
+  float safe_speed;
+
+  double max_vol1600;
+  double max_volmin;
+  float max_vol;
+
+  float accel_pull;
+  float accel_push;
+  float speed_pull;
+  float speed_push;
+  float accel_time;
+
   File csvFile;
-  struct params temp;
-  char filename[15];
+  char filename[50];
   strcpy(filename, "settings.txt");
   csvFile = SD.open(filename, FILE_READ);
   if (!csvFile) {
@@ -708,28 +795,29 @@ void SD_ReadSettings(void){
   csvFile.seek(0);
 
   // Read the file and store the data.
-  temp.volume = getValue(&csvFile);
-  temp.vol_per_1600steps = getValue(&csvFile);
-  temp.vol_per_min = getValue(&csvFile);
-  temp.max_Vol = getValue(&csvFile);
-  temp.sdelay = getValue(&csvFile);
-  temp.max_delay = getValue(&csvFile);
-  temp.max_rate = getValue(&csvFile);
-  temp.max_cal = getValue(&csvFile);
+  volume = getValue(&csvFile);
+  vol_per_1600steps = getValue(&csvFile);
+  vol_per_min = getValue(&csvFile);
+  sdelay = getValue(&csvFile);
+  safe_speed = getValue(&csvFile);
+
+  max_vol = getValue(&csvFile);    //maxAllowed.volume
+  max_volmin = getValue(&csvFile);  //maxAllowed.vol_per_min
+  max_vol1600 = getValue(&csvFile);   //maxAllowed.vol_per_1600steps
+
+  accel_pull = getValue(&csvFile);
+  accel_push = getValue(&csvFile);
+  speed_pull = getValue(&csvFile);
+  speed_push = getValue(&csvFile);
+  accel_time = getValue(&csvFile);
 
   //TODO validate min max
-  
+
   csvFile.close();
-  //Serial.print("Volume(mL)             :   ");
-  //Serial.println(volume);
-  //Serial.print("mL/1600 Steps          :   ");
-  //Serial.println(vol_per_1600steps);
-  //Serial.print("dispense rate (mL/min) :   ");
-  //Serial.println(vol_per_min);
-  //Serial.print("max volume (mL)        :   ");
-  //Serial.println(max_Vol);
-  //Serial.print("delay (s)              :   ");
-  //Serial.println(sdelay);
+ 
+}
+bool validateInput(void){
+
 }
 float getValue(File *csvFile){
   float result = 0.0;
@@ -769,31 +857,32 @@ void SD_WriteSettings(void){
   csvFile.println(",vol_per_1600");
   csvFile.print(value.vol_per_min);
   csvFile.println(",vol_per_min");
-  csvFile.print(value.max_Vol);
-  csvFile.println(",max_Vol");
   csvFile.print(value.sdelay);
   csvFile.println(",delay_s");
-  
-  csvFile.print(value.max_delay);
-  csvFile.println(",max_delay");
-  csvFile.print(value.max_rate);
+  csvFile.print(value.safe_speed);
+  csvFile.println(",safe_speed");
+
+  csvFile.print(maxAllowed.volume);
+  csvFile.println(",max_Vol");
+  csvFile.print(maxAllowed.vol_per_min);
   csvFile.println(",max_rate");
-  csvFile.print(value.max_cal);
+  csvFile.print(maxAllowed.vol_per_1600steps);
   csvFile.println(",max_cal");
   
+  csvFile.print(value.accel_pull);
+  csvFile.println(",accel_pull");
+  csvFile.print(value.accel_push);
+  csvFile.println(",accel_push");
+  csvFile.print(value.speed_pull);
+  csvFile.println(",speed_pull");
+  csvFile.print(value.speed_push);
+  csvFile.println(",speed_push");
+  csvFile.print(value.accel_time);
+  csvFile.println(",accel_time");
+
   csvFile.println("0,logfile");
   csvFile.close();
-  //Serial.println("Settings Saved");
-  //Serial.print("Volume(mL)             :   ");
-  //Serial.println(volume);
-  //Serial.print("mL/1600 Steps          :   ");
-  //Serial.println(vol_per_1600steps);
-  //Serial.print("dispense rate (mL/min) :   ");
-  //Serial.println(vol_per_min);
-  //Serial.print("max volume (mL)        :   ");
-  //Serial.println(max_Vol);
-  //Serial.print("delay (s)              :   ");
-  //Serial.println(sdelay);
+  
 }
 #endif
 
@@ -904,7 +993,7 @@ void bv11PopCallback(void *ptr){
     memset(buffer, 0, sizeof(buffer));
     vol0.getText(buffer,sizeof(buffer));
 
-    if(atof(buffer)<value.max_Vol){
+    if(atof(buffer)<maxAllowed.volume){
      value.volume = atof(buffer);
      //Serial.print("volume set to ");
      //Serial.println(volume);
@@ -921,7 +1010,7 @@ void bv11PopCallback(void *ptr){
   case 2:
     memset(buffer, 0, sizeof(buffer));
     ml160.getText(buffer,sizeof(buffer));
-    if(atof(buffer)<value.max_cal){
+    if(atof(buffer)<maxAllowed.vol_per_1600steps){
      value.vol_per_1600steps = atof(buffer);
      //Serial.print("volume per 1600 steps set to ");
      //Serial.println(vol_per_1600steps);
@@ -938,7 +1027,7 @@ void bv11PopCallback(void *ptr){
   case 3:
     memset(buffer, 0, sizeof(buffer));
     mlmin0.getText(buffer,sizeof(buffer));
-    if(atof(buffer)<value.max_rate){
+    if(atof(buffer)<maxAllowed.vol_per_min){
      value.vol_per_min = atof(buffer);
      //Serial.print("volume per min set to ");
      //Serial.println(vol_per_min);
@@ -955,7 +1044,7 @@ void bv11PopCallback(void *ptr){
   case 4:
     memset(buffer, 0, sizeof(buffer));
     sdelay0.getText(buffer,sizeof(buffer));
-    if(atof(buffer)<value.max_delay){
+    if(atof(buffer)<maxAllowed.sdelay){
      value.sdelay = atof(buffer) * 1000000;
      //Serial.print("delay (s) set to ");
      //Serial.println(sdelay);
