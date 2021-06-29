@@ -13,6 +13,7 @@
 #include "wiring_private.h"
 #include <SPI.h>
 #include <SD.h>
+#include <assert.h>
 
 #define sd_enable
 #define nex_enable
@@ -79,22 +80,6 @@ struct params{
 struct params value;
 struct params minAllowed;
 struct params maxAllowed;
-
-//float volume = 250;
-//int steps = 0;
-//float speed = 0;
-//float vol_per_1600steps = 58.0800;
-//float sdelay = 1000000;
-//bool dispensed = false;
-//float vol_per_min = 544.5;
-//float max_Vol = 501.00;
-//float max_delay = 10;
-//float max_rate = 4800;
-//float max_cal = 100;
-//int jogAmt = 100;
-//int mode = 1; //1,2,3
-//int pos = 0;
-
 
 char buffer[100] = {0};
 
@@ -304,8 +289,8 @@ void setDefaults(){
 
   minAllowed.accel_pull        = 1.0;
   minAllowed.accel_push        = 1.0;
-  minAllowed.speed_pull        = 0.0;
-  minAllowed.speed_push        = 0.0;
+  minAllowed.speed_pull        = 3000.0;
+  minAllowed.speed_push        = 3000.0;
   minAllowed.accel_time        = 200.0;
 
   minAllowed.steps             = 0;
@@ -320,13 +305,13 @@ void setDefaults(){
   maxAllowed.sdelay            = 10.0;
   maxAllowed.safe_speed        = 2000.0;
 
-  maxAllowed.accel_pull        = 1.0;
-  maxAllowed.accel_push        = 1.0;
-  maxAllowed.speed_pull        = 454.0;
-  maxAllowed.speed_push        = 454.0;
+  maxAllowed.accel_pull        = 1000.0;
+  maxAllowed.accel_push        = 1000.0;
+  maxAllowed.speed_pull        = 200.0;
+  maxAllowed.speed_push        = 200.0;
   maxAllowed.accel_time        = 1000.0;
 
-  maxAllowed.steps             = 0;
+  maxAllowed.steps             = 0; 
   maxAllowed.speed             = 0;
   maxAllowed.jogAmt            = 100;
   maxAllowed.mode              = 4; 
@@ -811,14 +796,54 @@ void SD_ReadSettings(void){
   speed_push = getValue(&csvFile);
   accel_time = getValue(&csvFile);
 
-  //TODO validate min max
+  if(volume > minAllowed.volume && volume < maxAllowed.volume){
+    value.volume = volume;
+  }
+  if(vol_per_1600steps > minAllowed.vol_per_1600steps 
+        && vol_per_1600steps < maxAllowed.vol_per_1600steps){
+    value.vol_per_1600steps = vol_per_1600steps;
+  }
+  if(vol_per_min > minAllowed.vol_per_min 
+        && vol_per_min < maxAllowed.vol_per_min){
+    value.vol_per_min = vol_per_min;
+  }
+  if(sdelay > minAllowed.sdelay && sdelay < maxAllowed.sdelay){
+    value.sdelay = sdelay;
+  }
+  if(safe_speed > minAllowed.safe_speed && safe_speed < maxAllowed.safe_speed){
+    value.safe_speed = safe_speed;
+  }
+
+  if(max_vol > minAllowed.volume ){
+    maxAllowed.volume = max_vol;
+  }
+  if(max_volmin > minAllowed.vol_per_min ){
+    maxAllowed.vol_per_min = max_volmin;
+  }
+  if(max_vol1600 > minAllowed.vol_per_1600steps ){
+    maxAllowed.vol_per_1600steps = max_vol1600;
+  }
+
+  if(accel_pull > minAllowed.accel_pull && accel_pull < maxAllowed.accel_pull){
+    value.accel_pull = accel_pull;
+  }
+  if(accel_push > minAllowed.accel_push && accel_push < maxAllowed.accel_push){
+    value.accel_push = accel_push;
+  }
+  if(speed_pull > minAllowed.speed_pull && speed_pull < maxAllowed.speed_pull){
+    value.speed_pull = speed_pull;
+  }
+  if(speed_push > minAllowed.speed_push && speed_push < maxAllowed.speed_push){
+    value.speed_push = speed_push;
+  }
+  if(accel_time > minAllowed.accel_time && accel_time < maxAllowed.accel_time){
+    value.accel_time = accel_time;
+  }
 
   csvFile.close();
  
 }
-bool validateInput(void){
 
-}
 float getValue(File *csvFile){
   float result = 0.0;
   //size_t n;      // Length of returned field with delimiter.
