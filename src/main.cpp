@@ -70,8 +70,6 @@ static unsigned long last_zero = 0;
 static unsigned long last_max = 0;
 static unsigned long last_disp = 0;
 
-
-
 //
 bool minLimit_trigger = false;
 bool maxLimit_trigger = false;
@@ -296,10 +294,10 @@ void setDefaults()
   value.safe_speed = 454.0;
 
   value.accel_pull = 1.0;
-  value.accel_push = 1.0;
+  value.accel_push = 2.0;
   value.speed_pull = 454.0;
   value.speed_push = 454.0;
-  value.accel_time = 1000.0;
+  value.accel_time = 500.0;
 
   value.steps = 0;
   value.speed = 2000;
@@ -318,7 +316,7 @@ void setDefaults()
   minAllowed.accel_push = 1.0;
   minAllowed.speed_pull = 3000.0;
   minAllowed.speed_push = 3000.0;
-  minAllowed.accel_time = 200.0;
+  minAllowed.accel_time = 199.0;
 
   minAllowed.steps = 0;
   minAllowed.speed = 0;
@@ -336,7 +334,7 @@ void setDefaults()
   maxAllowed.accel_push = 1000.0;
   maxAllowed.speed_pull = 200.0;
   maxAllowed.speed_push = 200.0;
-  maxAllowed.accel_time = 1000.0;
+  maxAllowed.accel_time = 2001.0;
 
   maxAllowed.steps = 0;
   maxAllowed.speed = 0;
@@ -473,7 +471,7 @@ void move_to_zero(void)
       digitalWrite(dir_Pin, LOW);
       delayMicroseconds(200000);
 
-      for (int i = 0; i < 10000; i++)
+      for (int i = 0; i < 2000; i++)
       {
         if (error_state || !stp_state)
         {
@@ -643,13 +641,8 @@ void dispense(void)
 
       // microseconds/step = mL/step * min/mL * 60000000 microseconds/min
 
-      value.speed = (((value.vol_per_1600steps / 1600) / value.vol_per_min) * 30000000);
-      //Serial.print("Speed : ");
-      //Serial.println(speed);
-      if (value.volume > maxAllowed.volume)
-      {
-      }
-      else if (value.volume > 0)
+      
+      if (value.volume < maxAllowed.volume && value.volume > 0) //if volume invalid do nothing
       {
 
         digitalWrite(dir_Pin, LOW);
@@ -657,6 +650,10 @@ void dispense(void)
 
         value.steps = value.volume / (value.vol_per_1600steps / 1600);
 
+        currSpeed = value.safe_speed;
+        Serial.print("Curr Speed : ");
+        Serial.println(currSpeed);
+        // Draw water . the pullback speed can only be modified through the sd card value
         for (int i = 0; i < value.steps; i++)
         {
           if (error_state || !stp_state)
@@ -665,18 +662,29 @@ void dispense(void)
             return;
           }
           //nexLoop(nex_listen_list);
-          if ((millis() - last_incr > value.accel_time) && currSpeed > value.speed_pull)
-          {
+          if ((millis() - last_incr > value.accel_time) && currSpeed > value.speed_pull) 
+          {                         // currspeed starts at the safe speed and decrements towards the target
             currSpeed = currSpeed - value.accel_pull;
             last_incr = millis();
           }
           step(currSpeed);
         }
+        Serial.print("Curr Speed : ");
+        Serial.println(currSpeed);
 
         digitalWrite(dir_Pin, HIGH);
         delayMicroseconds(value.sdelay);
         //Serial.println(sdelay);
 
+        currSpeed = value.safe_speed; // currspeed starts at the safe speed and decrements towards the target
+        value.speed = (((value.vol_per_1600steps / 1600) / value.vol_per_min) * 30000000);
+        Serial.print("Disp Speed : ");
+        Serial.println(value.speed);
+        value.speed_push = value.speed;
+        Serial.print("Curr Speed : ");
+        Serial.println(currSpeed);
+
+        // Push out the water. the dispense speed can be set via HMI or through sd card value
         for (int i = 0; i < value.steps; i++)
         {
           if (error_state || !stp_state)
@@ -692,6 +700,8 @@ void dispense(void)
           }
           step(value.speed);
         }
+        Serial.print("Curr Speed : ");
+        Serial.println(currSpeed);
       }
     }
   }
