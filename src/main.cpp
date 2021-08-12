@@ -575,58 +575,7 @@ void move_to_max(void)
   move_to_zero();
   sendCommand("page 3");
 }
-/*void dispense(void){
- //Serial.println("Dispensing");
-  //Serial.print("Volume(mL)   :   ");
-  //Serial.println(volume);
-  //Serial.print("mL/1600 Steps:   ");
-  //Serial.println(vol_per_1600steps);
-  //Serial.print("mL/min       :   ");
-  //Serial.println(vol_per_min);
-  if(stp_state){
-   digitalWrite(ena_Pin, HIGH);
-   delayMicroseconds(100);
-   
-   // microseconds/step = mL/step * min/mL * 60000000 microseconds/min
 
-   value.speed = (( (value.vol_per_1600steps / 1600) / value.vol_per_min) * 30000000);
-   //Serial.print("Speed : "); 
-   //Serial.println(speed); 
-   if (value.volume > value.max_Vol){
-
-   } else if (value.volume > 0) {
-    
-    digitalWrite(dir_Pin, LOW);
-    delayMicroseconds(100);
-
-    value.steps = value.volume / (value.vol_per_1600steps/1600);
-
-     for (int i = 0; i < value.steps; i++){
-      if(error_state || !stp_state){
-       sendCommand("page 0");
-       return;
-      }
-      //nexLoop(nex_listen_list);
-      step(value.speed);
-     }
-
-     digitalWrite(dir_Pin, HIGH);
-     delayMicroseconds(value.sdelay);
-     //Serial.println(sdelay);
-
-     for (int i = 0; i < value.steps; i++){
-      if(error_state || !stp_state){
-       sendCommand("page 0");
-       return;
-      }
-      //nexLoop(nex_listen_list);
-      step(value.speed);
-     }
-   }
-  }
-  value.dispensed = false;
-sendCommand("page 0");
-}*/
 void dispense(void)
 {
   unsigned long last_incr = 0;
@@ -698,7 +647,8 @@ void dispense(void)
             currSpeed = currSpeed - value.accel_push;
             last_incr = millis();
           }
-          step(value.speed);
+          //step(value.speed);
+          step(currSpeed);
         }
         Serial.print("Curr Speed : ");
         Serial.println(currSpeed);
