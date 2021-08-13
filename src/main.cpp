@@ -79,6 +79,7 @@ bool max_block = false;
 bool error_state = false;
 bool stp_state = false;
 bool fsw_state = false;
+bool dispensing = false;
 
 struct params
 {
@@ -293,8 +294,8 @@ void setDefaults()
   value.sdelay = 1000000.0;
   value.safe_speed = 454.0;
 
-  value.accel_pull = 1.0;
-  value.accel_push = 2.0;
+  value.accel_pull = 20.0;
+  value.accel_push = 20.0;
   value.speed_pull = 454.0;
   value.speed_push = 454.0;
   value.accel_time = 500.0;
@@ -437,7 +438,7 @@ void trigger_check(void)
 
   if (fsw_state && !digitalRead(foot_sw_Pin))
   {
-    if (millis() - last_fsw > DEBOUNCE_FSW)
+    if (((millis() - last_fsw) > DEBOUNCE_FSW) && !dispensing)
     {
       last_fsw = millis();
       //Serial.println("foot switch triggered");
@@ -578,6 +579,7 @@ void move_to_max(void)
 
 void dispense(void)
 {
+  dispensing = true;
   unsigned long last_incr = 0;
   float currSpeed = value.safe_speed;
   if (millis() - last_disp > DEBOUNCE_DISP)
@@ -590,7 +592,6 @@ void dispense(void)
 
       // microseconds/step = mL/step * min/mL * 60000000 microseconds/min
 
-      
       if (value.volume < maxAllowed.volume && value.volume > 0) //if volume invalid do nothing
       {
 
@@ -611,8 +612,8 @@ void dispense(void)
             return;
           }
           //nexLoop(nex_listen_list);
-          if ((millis() - last_incr > value.accel_time) && currSpeed > value.speed_pull) 
-          {                         // currspeed starts at the safe speed and decrements towards the target
+          if ((millis() - last_incr > value.accel_time) && currSpeed > value.speed_pull)
+          { // currspeed starts at the safe speed and decrements towards the target
             currSpeed = currSpeed - value.accel_pull;
             last_incr = millis();
           }
@@ -655,6 +656,7 @@ void dispense(void)
       }
     }
   }
+  dispensing = false;
   value.dispensed = false;
   sendCommand("page 0");
 }
