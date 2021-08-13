@@ -315,9 +315,9 @@ void setDefaults()
 
   minAllowed.accel_pull = 1.0;
   minAllowed.accel_push = 1.0;
-  minAllowed.speed_pull = 3000.0;
-  minAllowed.speed_push = 3000.0;
-  minAllowed.accel_time = 199.0;
+  minAllowed.speed_pull = 1.0;
+  minAllowed.speed_push = 1.0;
+  minAllowed.accel_time = 9.0;
 
   minAllowed.steps = 0;
   minAllowed.speed = 0;
@@ -333,8 +333,8 @@ void setDefaults()
 
   maxAllowed.accel_pull = 1000.0;
   maxAllowed.accel_push = 1000.0;
-  maxAllowed.speed_pull = 200.0;
-  maxAllowed.speed_push = 200.0;
+  maxAllowed.speed_pull = 1000.0;
+  maxAllowed.speed_push = 1000.0;
   maxAllowed.accel_time = 2001.0;
 
   maxAllowed.steps = 0;
