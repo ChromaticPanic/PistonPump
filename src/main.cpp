@@ -307,7 +307,7 @@ void setDefaults()
   value.mode = 1;
   value.pos = 0;
 
-  minAllowed.volume = 0.0;
+  minAllowed.volume = 1.0;
   minAllowed.vol_per_1600steps = 0.0;
   minAllowed.vol_per_min = 0.0;
   minAllowed.sdelay = 0.0;
@@ -327,7 +327,7 @@ void setDefaults()
 
   maxAllowed.volume = 600.0;
   maxAllowed.vol_per_1600steps = 100.0;
-  maxAllowed.vol_per_min = 4800.0;
+  maxAllowed.vol_per_min = 8000.0;
   maxAllowed.sdelay = 10.0;
   maxAllowed.safe_speed = 2000.0;
 
@@ -461,8 +461,9 @@ void step(int delay)
 void move_to_zero(void)
 { //454
   //Serial.println("Moving to zero");
-  if (millis() - last_zero > DEBOUNCE_ZERO)
+  if (((millis() - last_zero) > DEBOUNCE_ZERO) && !dispensing)
   {
+    dispensing = true;
     last_zero = millis();
     if (stp_state)
     {
@@ -520,70 +521,79 @@ void move_to_zero(void)
     minLimit_trigger = false;
     zero_block = false;
     value.dispensed = false;
+    dispensing = false;
     sendCommand("page 0");
   }
 }
 void move_to_max(void)
 {
   //Serial.println("Moving to zero");
-  max_block = true;
-  if (stp_state)
+  if (((millis() - last_zero) > DEBOUNCE_ZERO) && !dispensing)
   {
-    digitalWrite(ena_Pin, HIGH);
-    delayMicroseconds(100);
-
-    digitalWrite(dir_Pin, LOW);
-    delayMicroseconds(100);
-
-    while (!maxLimit_trigger)
+    dispensing = true;
+    last_zero = millis();
+    max_block = true;
+    if (stp_state)
     {
-      if (error_state || !stp_state)
-      {
-        max_block = false;
-        sendCommand("page 0");
-        return;
-      }
-      //nexLoop(nex_listen_list);
-      step(value.safe_speed);
-      value.pos++;
-    }
+      digitalWrite(ena_Pin, HIGH);
+      delayMicroseconds(100);
 
-    digitalWrite(dir_Pin, HIGH);
+      digitalWrite(dir_Pin, LOW);
+      delayMicroseconds(100);
+
+      while (!maxLimit_trigger)
+      {
+        if (error_state || !stp_state)
+        {
+          max_block = false;
+          sendCommand("page 0");
+          return;
+        }
+        //nexLoop(nex_listen_list);
+        step(value.safe_speed);
+        value.pos++;
+      }
+
+      digitalWrite(dir_Pin, HIGH);
+      delayMicroseconds(200000);
+
+      for (int i = 0; i < 200; i++)
+      {
+        if (error_state || !stp_state)
+        {
+          max_block = false;
+          sendCommand("page 0");
+          return;
+        }
+        //nexLoop(nex_listen_list);
+        step(value.safe_speed);
+        value.pos--;
+      }
+      //pos = 0;
+    }
+    maxLimit_trigger = false;
+    max_block = false;
+    value.dispensed = false;
+    maxAllowed.volume = value.vol_per_1600steps / 1600 * value.pos;
+    memset(buffer, 0, sizeof(buffer));
+    snprintf(buffer, sizeof(buffer), "%.2f", maxAllowed.volume);
+    maxvol0.setText(buffer);
+    dispensing = false;
     delayMicroseconds(200000);
-
-    for (int i = 0; i < 200; i++)
-    {
-      if (error_state || !stp_state)
-      {
-        max_block = false;
-        sendCommand("page 0");
-        return;
-      }
-      //nexLoop(nex_listen_list);
-      step(value.safe_speed);
-      value.pos--;
-    }
-    //pos = 0;
+    move_to_zero();
   }
-  maxLimit_trigger = false;
-  max_block = false;
-  value.dispensed = false;
-  maxAllowed.volume = value.vol_per_1600steps / 1600 * value.pos;
-  memset(buffer, 0, sizeof(buffer));
-  snprintf(buffer, sizeof(buffer), "%.2f", maxAllowed.volume);
-  maxvol0.setText(buffer);
-  delayMicroseconds(200000);
-  move_to_zero();
+
   sendCommand("page 3");
 }
 
 void dispense(void)
 {
-  dispensing = true;
+
   unsigned long last_incr = 0;
   float currSpeed = value.safe_speed;
-  if (millis() - last_disp > DEBOUNCE_DISP)
+  if (((millis() - last_disp) > DEBOUNCE_DISP) && !dispensing)
   {
+    dispensing = true;
     last_disp = millis();
     if (stp_state)
     {
@@ -655,8 +665,9 @@ void dispense(void)
         Serial.println(currSpeed);
       }
     }
+    dispensing = false;
   }
-  dispensing = false;
+
   value.dispensed = false;
   sendCommand("page 0");
 }
