@@ -1,0 +1,11 @@
+(sym_lib_table
+  (lib (name PistonPump-rescue)(type Legacy)(uri F:/Desktop/Desktop/Work/PistonPump/PistonPump/PCB/PistonPump-rescue.lib)(options "")(descr ""))
+  (lib (name PistonPump-cache)(type Legacy)(uri F:/Desktop/Desktop/Work/PistonPump/PistonPump/PCB/PistonPump-cache.lib)(options "")(descr ""))
+  (lib (name 0395021006)(type Legacy)(uri F:/Desktop/Desktop/Work/PistonPump/PistonPump/PCB/0395021006.lib)(options "")(descr ""))
+  (lib (name 284512-4)(type Legacy)(uri F:/Desktop/Desktop/Work/PistonPump/PistonPump/PCB/284512-4.lib)(options "")(descr ""))
+  (lib (name 284512-8)(type Legacy)(uri F:/Desktop/Desktop/Work/PistonPump/PistonPump/PCB/284512-8.lib)(options "")(descr ""))
+  (lib (name 1757491)(type Legacy)(uri F:/Desktop/Desktop/Work/PistonPump/PistonPump/PCB/1757491.lib)(options "")(descr ""))
+  (lib (name ARDUINO_MKR_ZERO)(type Legacy)(uri F:/Desktop/Desktop/Work/PistonPump/PistonPump/PCB/ARDUINO_MKR_ZERO.lib)(options "")(descr ""))
+  (lib (name BOB-12009)(type Legacy)(uri F:/Desktop/Desktop/Work/PistonPump/PistonPump/PCB/BOB-12009.lib)(options "")(descr ""))
+  (lib (name arduino)(type Legacy)(uri F:/Desktop/Desktop/Work/PistonPump/PistonPump/PCB/arduino.lib)(options "")(descr ""))
+)

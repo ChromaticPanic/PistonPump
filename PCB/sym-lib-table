@@ -1,0 +1,8 @@
+(sym_lib_table
+  (lib (name PistonPump-rescue)(type Legacy)(uri ${KIPRJMOD}/PistonPump-rescue.lib)(options "")(descr ""))
+  (lib (name arduino)(type Legacy)(uri ${KIPRJMOD}/arduino.lib)(options "")(descr ""))
+  (lib (name piston_pump)(type Legacy)(uri F:/Desktop/Desktop/Work/PistonPump/PistonPump/PCB/PistonPump-cache.lib)(options "")(descr ""))
+  (lib (name 1757491)(type Legacy)(uri ${KIPRJMOD}/1757491.lib)(options "")(descr ""))
+  (lib (name 284512-4)(type Legacy)(uri ${KIPRJMOD}/284512-4.lib)(options "")(descr ""))
+  (lib (name 0395021006)(type Legacy)(uri ${KIPRJMOD}/0395021006.lib)(options "")(descr ""))
+)
