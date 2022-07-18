@@ -31,6 +31,8 @@ static unsigned long last_bounce = 0;
 static unsigned long curr_time = 0;
 const static unsigned long DELAY_BOUNCE = 100;
 const static unsigned long DELAY_FSW_TRIGGER = 4000;
+const char * DELIMITER = ",";
+const char * NEWLINE = "\n";
 
 bool minLimit_trigger = false;
 bool maxLimit_trigger = false;
@@ -467,7 +469,7 @@ bool SD_Begin(void)
     return (1);
   }
 }
-size_t readField(File *file, char *str, size_t size, char *delim)
+size_t readField(File *file, char *str, size_t size, const char *delim)
 {
   char ch;
   size_t n = 0;
@@ -510,7 +512,7 @@ void SD_ReadSettings()
 
   // Read the file and store the data.
 
-  n = readField(&csvFile, str, sizeof(str), ",");
+  n = readField(&csvFile, str, sizeof(str), DELIMITER);
   if (n == 0)
   {
     // Serial.println("Too few lines");
@@ -520,9 +522,9 @@ void SD_ReadSettings()
   {
     // Serial.println("bad number");
   }
-  n = readField(&csvFile, str, sizeof(str), "\n");
+  n = readField(&csvFile, str, sizeof(str), NEWLINE);
 
-  n = readField(&csvFile, str, sizeof(str), ",");
+  n = readField(&csvFile, str, sizeof(str), DELIMITER);
   if (n == 0)
   {
     // Serial.println("Too few lines");
@@ -532,9 +534,9 @@ void SD_ReadSettings()
   {
     // Serial.println("bad number");
   }
-  n = readField(&csvFile, str, sizeof(str), "\n");
+  n = readField(&csvFile, str, sizeof(str), NEWLINE);
 
-  n = readField(&csvFile, str, sizeof(str), ",");
+  n = readField(&csvFile, str, sizeof(str), DELIMITER);
   if (n == 0)
   {
     // Serial.println("Too few lines");
@@ -544,9 +546,9 @@ void SD_ReadSettings()
   {
     // Serial.println("bad number");
   }
-  n = readField(&csvFile, str, sizeof(str), "\n");
+  n = readField(&csvFile, str, sizeof(str), NEWLINE);
 
-  n = readField(&csvFile, str, sizeof(str), ",");
+  n = readField(&csvFile, str, sizeof(str), DELIMITER);
   if (n == 0)
   {
     // Serial.println("Too few lines");
@@ -556,9 +558,9 @@ void SD_ReadSettings()
   {
     // Serial.println("bad number");
   }
-  n = readField(&csvFile, str, sizeof(str), "\n");
+  n = readField(&csvFile, str, sizeof(str), NEWLINE);
 
-  n = readField(&csvFile, str, sizeof(str), ",");
+  n = readField(&csvFile, str, sizeof(str), DELIMITER);
   if (n == 0)
   {
     // Serial.println("Too few lines");
@@ -568,9 +570,9 @@ void SD_ReadSettings()
   {
     // Serial.println("bad number");
   }
-  n = readField(&csvFile, str, sizeof(str), "\n");
+  n = readField(&csvFile, str, sizeof(str), NEWLINE);
 
-  n = readField(&csvFile, str, sizeof(str), ",");
+  n = readField(&csvFile, str, sizeof(str), DELIMITER);
   if (n == 0)
   {
     // Serial.println("Too few lines");
@@ -580,9 +582,9 @@ void SD_ReadSettings()
   {
     // Serial.println("bad number");
   }
-  n = readField(&csvFile, str, sizeof(str), "\n");
+  n = readField(&csvFile, str, sizeof(str), NEWLINE);
 
-  n = readField(&csvFile, str, sizeof(str), ",");
+  n = readField(&csvFile, str, sizeof(str), DELIMITER);
   if (n == 0)
   {
     // Serial.println("Too few lines");
@@ -592,9 +594,9 @@ void SD_ReadSettings()
   {
     // Serial.println("bad number");
   }
-  n = readField(&csvFile, str, sizeof(str), "\n");
+  n = readField(&csvFile, str, sizeof(str), NEWLINE);
 
-  n = readField(&csvFile, str, sizeof(str), ",");
+  n = readField(&csvFile, str, sizeof(str), DELIMITER);
   if (n == 0)
   {
     // Serial.println("Too few lines");
@@ -604,7 +606,7 @@ void SD_ReadSettings()
   {
     // Serial.println("bad number");
   }
-  n = readField(&csvFile, str, sizeof(str), "\n");
+  n = readField(&csvFile, str, sizeof(str), NEWLINE);
   // Allow missing endl at eof.
   if (str[n - 1] != '\n' && csvFile.available())
   {
