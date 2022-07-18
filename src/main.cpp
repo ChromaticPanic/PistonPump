@@ -136,8 +136,76 @@ void update_icons(){
  sendCommand("ref 0");
 }
 #endif
+
+void moveBySteps(int steps, int delay, boolean direction) {
+  if(stp_state){
+   digitalWrite(ena_Pin, HIGH);
+   delayMicroseconds(100);
+
+
+  }
+
+}
+
+void min_Limit() {
+  if(millis()-last_interrupt > 5000){
+    minLimit_trigger = true;
+    if(!zero_block){
+     error_state = true;
+    }
+  }
+  last_interrupt = millis();
+   
+}
+void max_Limit() {
+  if(millis()-last_interrupt > 5000){
+    maxLimit_trigger = true;
+    if(!max_block){
+     error_state = true;
+    }
+   }
+  last_interrupt = millis();
+}
+void e_Stop() {
+  if(millis()-last_interrupt > 5000){
+    eStop_trigger = true;
+    error_state = true;
+   }
+  last_interrupt = millis();
+}
+
+void enableEstop(){
+  attachInterrupt(digitalPinToInterrupt(estop_sw_Pin), e_Stop, RISING);
+}
+
+void enableLimitSwitches(){
+ attachInterrupt(digitalPinToInterrupt(min_Limit_sw_Pin), min_Limit, RISING);
+ attachInterrupt(digitalPinToInterrupt(max_Limit_sw_Pin), max_Limit, RISING);
+}
+
+void disableEstop(){
+ detachInterrupt(digitalPinToInterrupt(estop_sw_Pin));
+}
+
+void disableLimitSwitches(){
+ detachInterrupt(digitalPinToInterrupt(min_Limit_sw_Pin));
+ detachInterrupt(digitalPinToInterrupt(max_Limit_sw_Pin));
+}
+
+void safetyEna(){
+ enableEstop();
+ enableLimitSwitches();
+ //Serial.println("interrupts enabled");
+}
+void safetyDis(){
+ disableEstop();
+ disableLimitSwitches();
+ //Serial.println("interrupts disabled");
+}
+
 void move_to_zero(){ //454
  //Serial.println("Moving to zero");
+  enableLimitSwitches();
   zero_block = true;
   if(stp_state){
    digitalWrite(ena_Pin, HIGH);
@@ -179,10 +247,12 @@ void move_to_zero(){ //454
  minLimit_trigger = false; 
  zero_block = false;
  dispensed = false;
+ disableLimitSwitches();
  sendCommand("page 0");
 }
 void move_to_max(){
  //Serial.println("Moving to zero");
+  enableLimitSwitches();
   max_block = true;
   if(stp_state){
    digitalWrite(ena_Pin, HIGH);
@@ -226,6 +296,7 @@ void move_to_max(){
  maxLimit_trigger = false; 
  max_block = false;
  dispensed = false;
+ disableLimitSwitches();
  max_Vol = vol_per_1600steps / 1600 * pos;
  memset(buffer, 0, sizeof(buffer));
  snprintf(buffer, sizeof(buffer), "%.2f", max_Vol);
@@ -331,48 +402,8 @@ void cal1600(){
  dispensed = false;
  sendCommand("page 1");
 }
-
-void min_Limit() {
-  if(millis()-last_interrupt > 5000){
-    minLimit_trigger = true;
-    if(!zero_block){
-     error_state = true;
-    }
-  }
-  last_interrupt = millis();
-   
-}
-void max_Limit() {
-  if(millis()-last_interrupt > 5000){
-    maxLimit_trigger = true;
-    if(!max_block){
-     error_state = true;
-    }
-   }
-  last_interrupt = millis();
-}
-void e_Stop() {
-  if(millis()-last_interrupt > 5000){
-    eStop_trigger = true;
-    error_state = true;
-   }
-  last_interrupt = millis();
-}
 void rstMCU(){
  NVIC_SystemReset();
-}
-
-void safetyEna(){
- attachInterrupt(digitalPinToInterrupt(min_Limit_sw_Pin), min_Limit, RISING);
- attachInterrupt(digitalPinToInterrupt(max_Limit_sw_Pin), max_Limit, RISING);
- attachInterrupt(digitalPinToInterrupt(estop_sw_Pin), e_Stop, RISING);
- //Serial.println("interrupts enabled");
-}
-void safetyDis(){
- detachInterrupt(digitalPinToInterrupt(min_Limit_sw_Pin));
- detachInterrupt(digitalPinToInterrupt(max_Limit_sw_Pin));
- detachInterrupt(digitalPinToInterrupt(estop_sw_Pin));
- //Serial.println("interrupts disabled");
 }
 
 #ifdef sd_enable
@@ -793,8 +824,6 @@ void abortBtnPopCallback(void *ptr){
 }
 #endif
 
-
-
 void setup() {
   Serial.begin(9600);
   for(int i=5 ; i>0 ; i--){
@@ -901,8 +930,7 @@ void setup() {
   maxcal0.setText(buffer);
 
   sendCommand("page 0");
-  safetyEna(); 
- 
+  enableEstop();
  
 }
 
@@ -964,9 +992,5 @@ void loop() {
   
  }
 
-  //digitalWrite(LED_BUILTIN, HIGH);   // turn the LED on (HIGH is the voltage level)
-  //delay(1000);                       // wait for a second
-  //digitalWrite(LED_BUILTIN, LOW);    // turn the LED off by making the voltage LOW
-  //delay(1000);
 }
 
