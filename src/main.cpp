@@ -29,7 +29,7 @@ static unsigned long last_interrupt = 0;
 static unsigned long last_trigger = 0;
 static unsigned long last_bounce = 0;
 static unsigned long curr_time = 0;
-const static unsigned long DELAY_BOUNCE = 100;
+const static unsigned long DELAY_BOUNCE = 20;
 const static unsigned long DELAY_FSW_TRIGGER = 4000;
 const char * DELIMITER = ",";
 const char * NEWLINE = "\n";
@@ -1129,8 +1129,8 @@ void loop()
             dispense();
           }
         }
-      }
       fsw_prev_steady_state = fsw_curr_state;
+      }
     }
   }
 }
