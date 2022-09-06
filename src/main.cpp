@@ -430,7 +430,7 @@ void dispense()
   if ( stp_state && zeroed )
   {
     digitalWrite( ena_Pin, HIGH );
-    delayMicroseconds( 200 );
+    delayMicroseconds( 1000 );
 
     // microseconds/step = mL/step * min/mL * 60000000 microseconds/min
     if ( validate() )
@@ -476,7 +476,7 @@ void cal1600()
   if ( stp_state )
   {
     digitalWrite( ena_Pin, HIGH );
-    delayMicroseconds( 100 );
+    delayMicroseconds( 1000 );
 
     setDirection( LOW );
 
