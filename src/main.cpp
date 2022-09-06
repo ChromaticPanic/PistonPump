@@ -27,7 +27,7 @@ const byte foot_sw_Pin = 6;
 const int chipSelect = SDCARD_SS_PIN;
 static unsigned long last_interrupt = 0;
 static unsigned long last_trigger = 0;
-static unsigned long last_bounce = 0;
+static unsigned long fsw_last_bounce = 0;
 static unsigned long curr_time = 0;
 const static unsigned long DELAY_BOUNCE = 20;
 const static unsigned long DELAY_FSW_TRIGGER = 4000;
@@ -445,8 +445,11 @@ void dispense()
 
         steps = volume / ( vol_per_1600steps / 1600 );
 
-        if ( move( speed, steps ) )
+        
+        stepsTraversed = moveLinearAccel( speed * 4, speed, 2000 );
+        if ( stepsTraversed > 0  && stepsTraversed < steps)
         {
+          move( speed, ( steps - stepsTraversed ) );
 
           delayMicroseconds( sdelay );
           setDirection( HIGH );
@@ -1092,14 +1095,14 @@ void loop()
     fsw_curr_state = !digitalRead( foot_sw_Pin );
     if ( fsw_curr_state != fsw_prev_bounce_state )
     {
-      last_bounce = millis();
+      fsw_last_bounce = millis();
       fsw_prev_bounce_state = fsw_curr_state;
     }
 
     curr_time = millis();
     if ( ( curr_time - last_trigger ) > DELAY_FSW_TRIGGER )
     {
-      if ( ( curr_time - last_bounce ) > DELAY_BOUNCE )
+      if ( ( curr_time - fsw_last_bounce ) > DELAY_BOUNCE )
       {
         if ( !fsw_prev_steady_state && fsw_curr_state )
         {
