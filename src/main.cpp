@@ -245,7 +245,7 @@ void pulse( float pulsedelay )
   delayMicroseconds( ( int )pulsedelay );
 }
 
-int moveLinearAccel( float startDelay, float endDelay, unsigned long accelTime)
+int moveLinearAccel( float startDelay, float endDelay, unsigned long accelTime )
 {
   float accelRate = ( startDelay - endDelay ) / 10;
   float pulseDelay = startDelay;
@@ -262,22 +262,27 @@ int moveLinearAccel( float startDelay, float endDelay, unsigned long accelTime)
 
     while ( currTime < endTime )
     {
-      if ( error_state || !stp_state )
+      if ( !error_state && stp_state )
+      {
+        currTime = millis();
+        if ( ( currTime - prevTime ) > accelDelay )
+        {
+          pulseDelay = pulseDelay - accelRate;
+          prevTime = currTime;
+        }
+        if ( pulseDelay < endDelay )
+        {
+          pulseDelay = endDelay;
+        }
+        pulse( pulseDelay );
+        stepsTraversed++;
+      }
+      else
       {
         sendCommand( "page 0" );
         return -1;
       }
-      currTime = millis();
-      if((currTime - prevTime) > accelDelay) {
-        pulseDelay = pulseDelay - accelRate;
-        prevTime = currTime;
-      }
-      if ( pulseDelay < endDelay )
-      {
-        pulseDelay = endDelay;
-      }
-      pulse( pulseDelay );
-      stepsTraversed++;
+
     }
 
   }
@@ -304,12 +309,15 @@ bool move( float pulsedelay, float steps )
 
     for ( int i = 0; i < steps; i++ )
     {
-      if ( error_state || !stp_state )
+      if ( !error_state && stp_state )
+      {
+        pulse( pulsedelay );
+      }
+      else
       {
         sendCommand( "page 0" );
         return false;
       }
-      pulse( pulsedelay );
     }
 
   }
@@ -331,14 +339,17 @@ void move_to_zero()
 
     while ( !minLimit_trigger )
     {
-      if ( error_state || !stp_state )
+      if ( !error_state && stp_state )
+      {
+        pulse( 454 );
+      }
+      else
       {
         zero_block = false;
         sendCommand( "page 0" );
         return;
       }
       // nexLoop(nex_listen_list);
-      pulse( 454 );
     }
 
     setDirection( LOW );
@@ -346,14 +357,17 @@ void move_to_zero()
 
     for ( int i = 0; i < 200; i++ )
     {
-      if ( error_state || !stp_state )
+      if ( !error_state && stp_state )
+      {
+        pulse( 454 );
+      }
+      else
       {
         zero_block = false;
         sendCommand( "page 0" );
         return;
       }
       // nexLoop(nex_listen_list);
-      pulse( 454 );
     }
     pos = 0;
   }
@@ -377,15 +391,18 @@ void move_to_max()
 
     while ( !maxLimit_trigger )
     {
-      if ( error_state || !stp_state )
+      if ( !error_state && stp_state )
+      {
+        pulse( 454 );
+        pos++;
+      }
+      else
       {
         max_block = false;
         sendCommand( "page 0" );
         return;
       }
       // nexLoop(nex_listen_list);
-      pulse( 454 );
-      pos++;
     }
 
     setDirection( HIGH );
@@ -393,15 +410,18 @@ void move_to_max()
 
     for ( int i = 0; i < 200; i++ )
     {
-      if ( error_state || !stp_state )
+      if ( !error_state && stp_state )
+      {
+        pulse( 454 );
+        pos--;
+      }
+      else
       {
         max_block = false;
         sendCommand( "page 0" );
         return;
       }
       // nexLoop(nex_listen_list);
-      pulse( 454 );
-      pos--;
     }
     // pos = 0;
   }
@@ -445,9 +465,9 @@ void dispense()
 
         steps = volume / ( vol_per_1600steps / 1600 );
 
-        
+
         stepsTraversed = moveLinearAccel( speed * 4, speed, 2000 );
-        if ( stepsTraversed > 0  && stepsTraversed < steps)
+        if ( stepsTraversed > 0 && stepsTraversed < steps )
         {
           move( speed, ( steps - stepsTraversed ) );
 
@@ -456,7 +476,7 @@ void dispense()
           delayMicroseconds( sdelay );
           // Serial.println(sdelay);
           stepsTraversed = moveLinearAccel( speed * 4, speed, 2000 );
-          if ( stepsTraversed > 0  && stepsTraversed < steps)
+          if ( stepsTraversed > 0 && stepsTraversed < steps )
           {
             move( speed, ( steps - stepsTraversed ) );
           }
@@ -568,7 +588,8 @@ void SD_ReadSettings()
   {
     // Serial.println("bad number");
   }
-  for(int i = 1; i < 8; i++){
+  for ( int i = 1; i < 8; i++ )
+  {
     readField( &csvFile, str, sizeof( str ), NEWLINE );
     n = readField( &csvFile, str, sizeof( str ), DELIMITER );
     if ( n == 0 )
@@ -1108,7 +1129,7 @@ void loop()
         {
           last_trigger = curr_time;
           // Serial.println("foot switch triggered");
-          if ( !error_state || !dispensed )
+          if ( !error_state && !dispensed )
           {
             dispensed = true;
             dispense();
